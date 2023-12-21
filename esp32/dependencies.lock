@@ -1,0 +1,35 @@
+dependencies:
+  espressif/esp-idf-cxx:
+    component_hash: 2fa63e4e725f0c2d3dd6d99da8a91d404b4b49667088b1be0f336eb9c13ff17f
+    source:
+      service_url: https://api.components.espressif.com/
+      type: service
+    version: 1.0.2-beta
+  espressif/mdns:
+    component_hash: 810ec139689ae93bf42520d05de4855fbb68f7140ef67797d91d8d61829589cb
+    source:
+      service_url: https://api.components.espressif.com/
+      type: service
+    version: 1.2.2
+  idf:
+    component_hash: null
+    source:
+      type: idf
+    version: 5.3.0
+  nnctroboticsclub/libstm-ota:
+    component_hash: da3f766a1f9de6da7e55123bad5820aabf211c75ff63b65a5f583014d80f8447
+    source:
+      git: ssh://git@github.com/nnctroboticsclub/libstm-ota.git
+      path: .
+      type: git
+    version: e9026568870a97775764ec88bd559f7b5a871c20
+  nnctroboticsclub/stream-base:
+    component_hash: a855f54e26f7d503d858baff5c0a8ccc152a84225540a32c6b2c5793970ca2dc
+    source:
+      git: ssh://git@github.com/nnctroboticsclub/stream-base.git
+      path: .
+      type: git
+    version: 6442fc50226f2a96c994fa84cccf413be52a0f31
+manifest_hash: 1327bb3e01ef16efc99b36f7f587ce66088a23973dd448a5d7d99a8c5521e525
+target: esp32
+version: 1.0.0
