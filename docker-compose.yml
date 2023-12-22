@@ -1,0 +1,11 @@
+version: "3"
+
+services:
+  controller:
+    image: oven/bun:1.0.8
+    volumes:
+      - ./controller:/appppppppp
+    working_dir: /appppppppp
+    command: bash -c "bun install && bun run dev -- --open 2>&1 | sed 's/\\/appppppppp/.\\/controller/g'"
+    ports:
+      - 8080:8080
