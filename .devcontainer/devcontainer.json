@@ -1,18 +1,12 @@
 {
 	"name": "ESP-IDF & MBedOS 6",
-	"build": {
-		"dockerfile": "Dockerfile",
-		"context": "."
-	},
-	"mounts": [
-		"type=bind,source=/dev/bus/usb,target=/dev/bus/usb",
-		"source=/dev/disk/by-id,target=/dev/disk/by-id,type=bind",
-		"source=/dev/serial/by-id,target=/dev/serial/by-id,type=bind",
-		"source=/run/udev,target=/run/udev,readonly,type=bind"
-	],
-	"privileged": true,
+	"image": "mcr.microsoft.com/devcontainers/base:jammy",
 	// Features to add to the dev container. More info: https://containers.dev/features.
-	// "features": {},
+	"features": {
+		"ghcr.io/syoch/devcontainers/device-forward:1.0.1": {},
+		"ghcr.io/syoch/devcontainers/mbed-cli:1.0.1": {},
+		"ghcr.io/syoch/devcontainers/esp-idf:1.0.3": {}
+	},
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
 	// "forwardPorts": [],
 	// Use 'postCreateCommand' to run commands after the container is created.

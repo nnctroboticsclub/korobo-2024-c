@@ -23,13 +23,16 @@ void ReceiveLoop() {
   }
 }
 void SendLoop() {
-  CANMessage msg(0x0, "A", 1, CANData, CANStandard);
+  int i = 0;
 
   while (1) {
+    CANMessage msg(0x0, "\0", 1, CANData, CANStandard);
+    msg.data[0] = i;
     auto r = can.write(msg);
     if (r == 0) {
       printf("failed to send message\n");
     }
+    i++;
     ThisThread::sleep_for(1000ms);
   }
 }
