@@ -41,31 +41,15 @@ class CANDriver {
                  esp_err_to_name(status));
         continue;
       }
-
-      if (alerts & TWAI_ALERT_ERR_ACTIVE) {
-        ESP_LOGE(TAG, "TWAI_ALERT_ERR_ACTIVE");
-      }
       if (alerts & TWAI_ALERT_BUS_RECOVERED) {
         ESP_LOGI(TAG, "Bus recovered");
         self->bus_locked = false;
         twai_start_v2(driver);
       }
-      if (alerts & TWAI_ALERT_ARB_LOST) {
-        ESP_LOGW(TAG, "Twai arb lost");
-      }
-      if (alerts & TWAI_ALERT_TX_FAILED) {
-        ESP_LOGW(TAG, "Twai tx failed");
-      }
-      if (alerts & TWAI_ALERT_RX_QUEUE_FULL) {
-        ESP_LOGW(TAG, "Twai rx queue full");
-      }
       if (alerts & TWAI_ALERT_BUS_OFF) {
         ESP_LOGE(TAG, "Recovering Bus...");
         twai_initiate_recovery_v2(driver);
         self->bus_locked = true;
-      }
-      if (alerts & TWAI_ALERT_RX_FIFO_OVERRUN) {
-        ESP_LOGE(TAG, "Twai rx fifo overrun!!!");
       }
 
       if (alerts & TWAI_ALERT_RX_DATA) {
@@ -154,6 +138,8 @@ class CANDriver {
 };
 
 class App {
+  CANDriver can_;
+
   stm32::ota::InitConfig& GetInitConfig() {
     using stm32::ota::InitConfig;
 
@@ -200,37 +186,63 @@ class App {
     return init_config;
   }
 
+  static esp_err_t RoboCtrl(httpd_req_t* req) {
+    static const char* TAG = "RoboCtrl";
+
+    httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+
+    auto& app = *static_cast<App*>(req->user_ctx);
+
+    if (req->method == HTTP_GET) {
+      return ESP_OK;
+    }
+
+    httpd_ws_frame_t ws_pkt = {0};
+    ws_pkt.type = HTTPD_WS_TYPE_TEXT;
+
+    esp_err_t ret = httpd_ws_recv_frame(req, &ws_pkt, 0);
+    if (ret != ESP_OK) {
+      // ESP_LOGE(TAG, "httpd_ws_recv_frame failed to get frame len with %d",
+      // ret);
+      return ret;
+    }
+
+    if (ws_pkt.len) {
+      auto buf = std::vector<uint8_t>(ws_pkt.len);
+
+      ws_pkt.payload = buf.data();
+      ret = httpd_ws_recv_frame(req, &ws_pkt, ws_pkt.len);
+      if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "httpd_ws_recv_frame failed with %d", ret);
+        return ret;
+      }
+
+      ESP_LOGI(TAG, "Got packet with message: %s", ws_pkt.payload);
+    }
+    return ret;
+  }
+
+ public:
+  App() : can_(GPIO_NUM_15, GPIO_NUM_4) {}
+
   void Main() {
-    if (0)
-      xTaskCreate(
-          [](void* args) {
-            auto app = static_cast<App*>(args);
-            auto& init_config = app->GetInitConfig();
-            stm32::ota::OTAServer ota_server(idf::GPIONum(22), init_config);
-          },
-          "OTA Server", 4096, this, 1, nullptr);
+    auto& init_config = this->GetInitConfig();
+    stm32::ota::OTAServer ota_server(idf::GPIONum(22), init_config);
+
+    ota_server.OnHTTPDStart([this](httpd_handle_t server) {
+      httpd_uri_t uri = {
+          .uri = "/robo-ctrl",
+          .method = HTTP_GET,
+          .handler = App::RoboCtrl,
+          .user_ctx = this,
+          .is_websocket = true,
+      };
+      httpd_register_uri_handler(server, &uri);
+    });
   }
 };
 
 extern "C" void app_main(void) {
-  CANDriver can(GPIO_NUM_15, GPIO_NUM_4);
-  can.AddRxCallback(0x00000000, [](CANDriver&, uint32_t id,
-                                   std::vector<uint8_t> const& data) {
-    printf("Received CAN message on id=%lx: ", id);
-    for (auto& byte : data) {
-      printf("%02x ", byte);
-    }
-    printf("\n");
-  });
-
-  unsigned char i = 0;
-
-  while (1) {
-    auto status = can.SendStd(0x123, std::vector<uint8_t>{i});
-    if (!status) {
-      printf("Failed to send CAN message\n");
-    }
-    vTaskDelay(1000 / portTICK_PERIOD_MS);
-    i++;
-  }
+  App app;
+  app.Main();
 }
