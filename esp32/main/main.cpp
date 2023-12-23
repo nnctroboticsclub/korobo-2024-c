@@ -14,8 +14,8 @@
 
 class CANDriver {
  public:
-  using Callback = std::function<void(CANDriver& driver, uint32_t id,
-                                      std::vector<uint8_t> const& data)>;
+  using Callback =
+      std::function<void(uint32_t id, std::vector<uint8_t> const& data)>;
   using CallbackTag = uint32_t;
 
  private:
@@ -26,8 +26,8 @@ class CANDriver {
   static void AlertLoop(void* args) {
     static const char* TAG = "AlertWatcher#CANDriver";
 
-    auto self = static_cast<CANDriver*>(args);
-    auto driver = self->twai_driver_;
+    auto& self = *static_cast<CANDriver*>(args);
+    auto driver = self.twai_driver_;
 
     while (1) {
       uint32_t alerts;
@@ -43,13 +43,13 @@ class CANDriver {
       }
       if (alerts & TWAI_ALERT_BUS_RECOVERED) {
         ESP_LOGI(TAG, "Bus recovered");
-        self->bus_locked = false;
+        self.bus_locked = false;
         twai_start_v2(driver);
       }
       if (alerts & TWAI_ALERT_BUS_OFF) {
         ESP_LOGE(TAG, "Recovering Bus...");
         twai_initiate_recovery_v2(driver);
-        self->bus_locked = true;
+        self.bus_locked = true;
       }
 
       if (alerts & TWAI_ALERT_RX_DATA) {
@@ -65,9 +65,11 @@ class CANDriver {
           continue;
         }
 
-        std::vector<uint8_t> data(msg.data, msg.data + msg.data_length_code);
-        for (auto& cb : self->callbacks_) {
-          cb.second(*self, msg.identifier, data);
+        std::vector<uint8_t> data(msg.data_length_code);
+        std::copy(msg.data, msg.data + msg.data_length_code, data.begin());
+
+        for (auto& cb : self.callbacks_) {
+          cb.second(msg.identifier, data);
         }
       }
 
@@ -76,7 +78,9 @@ class CANDriver {
   }
 
  public:
-  CANDriver(gpio_num_t tx, gpio_num_t rx) {
+  CANDriver() : twai_driver_(nullptr), callbacks_(), bus_locked(false) {}
+
+  void Init(gpio_num_t tx, gpio_num_t rx) {
     static const char* TAG = "Init#CANDriver";
 
     twai_general_config_t general_config =
@@ -104,7 +108,7 @@ class CANDriver {
     }
     ESP_LOGI(TAG, "start TWAI driver sucessful");
 
-    xTaskCreate(CANDriver::AlertLoop, "AlertLoop#CAN", 2048, this, 1, NULL);
+    xTaskCreate(CANDriver::AlertLoop, "AlertLoop#CAN", 4096, this, 1, NULL);
   }
 
   bool SendStd(uint32_t id, std::vector<uint8_t> const& data) {
@@ -170,20 +174,48 @@ class App {
         }},
         .serial_proxies = {InitConfig::SerialProxy{.id = 1, .uart_port_id = 1}},
         .network_profiles = {InitConfig::NetworkProfile{
-            .id = 2,
-            .is_ap = true,
-            .is_static = false,
-            .ssid = "ESP32",
-            .password = "esp32-network",
-            .hostname = "esp32",
-            .ip = 0xc0a80001,
-            .subnet = 0xffffff00,
-            .gateway = 0xc0a80001,
-        }},
-        .active_network_profile_id = 2,
+                                 .id = 2,
+                                 .is_ap = true,
+                                 .is_static = true,
+                                 .ssid = "ESP32",
+                                 .password = "esp32-network",
+                                 .hostname = "esp32",
+                                 .ip = 0xc0a80001,
+                                 .subnet = 0xffffff00,
+                                 .gateway = 0xc0a80001,
+                             },
+                             InitConfig::NetworkProfile{
+                                 .id = 3,
+                                 .is_ap = false,
+                                 .is_static = false,
+                                 .ssid = "3-303-Abe 2.4Ghz",
+                                 .password = "syochnetwork",
+                                 .hostname = "esp32",
+                                 .ip = 0,
+                                 .subnet = 0,
+                                 .gateway = 0,
+                             }},
+        .active_network_profile_id = 3,
         .primary_stm32_id = 2};
 
     return init_config;
+  }
+
+  void HandleRoboCtrl(std::vector<uint8_t>& data) {
+    const int chunks = data.size() / 8;
+    for (int i = 0; i < chunks; i++) {
+      std::vector<uint8_t> chunk(data.begin() + i * 8,
+                                 data.begin() + (i + 1) * 8);
+      can_.SendStd(0x200 + i, chunk);
+
+      ESP_LOG_BUFFER_HEX("CAN", chunk.data(), chunk.size());
+    }
+
+    std::vector last_chunk(data.begin() + chunks * 8, data.end());
+    if (!last_chunk.empty()) {
+      can_.SendStd(0x200 + chunks, last_chunk);
+      ESP_LOG_BUFFER_HEX("CAN", last_chunk.data(), last_chunk.size());
+    }
   }
 
   static esp_err_t RoboCtrl(httpd_req_t* req) {
@@ -198,7 +230,7 @@ class App {
     }
 
     httpd_ws_frame_t ws_pkt = {0};
-    ws_pkt.type = HTTPD_WS_TYPE_TEXT;
+    ws_pkt.type = HTTPD_WS_TYPE_BINARY;
 
     esp_err_t ret = httpd_ws_recv_frame(req, &ws_pkt, 0);
     if (ret != ESP_OK) {
@@ -208,7 +240,7 @@ class App {
     }
 
     if (ws_pkt.len) {
-      auto buf = std::vector<uint8_t>(ws_pkt.len);
+      auto buf = std::vector<uint8_t>(ws_pkt.len + 1, 0);
 
       ws_pkt.payload = buf.data();
       ret = httpd_ws_recv_frame(req, &ws_pkt, ws_pkt.len);
@@ -218,14 +250,17 @@ class App {
       }
 
       ESP_LOGI(TAG, "Got packet with message: %s", ws_pkt.payload);
+      app.HandleRoboCtrl(buf);
     }
     return ret;
   }
 
  public:
-  App() : can_(GPIO_NUM_15, GPIO_NUM_4) {}
+  App() : can_() {}
 
   void Main() {
+    can_.Init(GPIO_NUM_15, GPIO_NUM_4);
+
     auto& init_config = this->GetInitConfig();
     stm32::ota::OTAServer ota_server(idf::GPIONum(22), init_config);
 
@@ -239,6 +274,18 @@ class App {
       };
       httpd_register_uri_handler(server, &uri);
     });
+
+    ESP_LOGI("Main/CAN", "Sending test message");
+    can_.SendStd(0x200, {0x01, 0x02, 0x03, 0x04, 0x05, 0x06});
+    ESP_LOGI("Main/CAN", "Adding callback");
+    can_.AddRxCallback(0x201,
+                       [](uint32_t id, std::vector<uint8_t> const& data) {
+                         ESP_LOGI("CAN", "Got message with id: %ld", id);
+                         ESP_LOG_BUFFER_HEX("CAN", data.data(), data.size());
+                       });
+    ESP_LOGI("Main/CAN", "Done");
+
+    while (1) vTaskDelay(1);
   }
 };
 

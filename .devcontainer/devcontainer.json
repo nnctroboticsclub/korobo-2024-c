@@ -5,7 +5,9 @@
 	"features": {
 		"ghcr.io/syoch/devcontainers/device-forward:1.0.1": {},
 		"ghcr.io/syoch/devcontainers/mbed-cli:1.0.1": {},
-		"ghcr.io/syoch/devcontainers/esp-idf:1.0.3": {}
+		"ghcr.io/syoch/devcontainers/esp-idf:1.0.3": {
+			"target": "release/v5.2"
+		}
 	},
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
 	// "forwardPorts": [],
