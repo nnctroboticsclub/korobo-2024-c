@@ -119,9 +119,6 @@ class CANDriver {
   bool SendStd(uint32_t id, std::vector<uint8_t> const& data) {
     static const char* TAG = "Send#CANDriver";
 
-    ESP_LOGI(TAG, "Sending CAN message: %ld", id);
-    ESP_LOG_BUFFER_HEXDUMP(TAG, data.data(), data.size(), ESP_LOG_INFO);
-
     if (data.size() > 8) {
       ESP_LOGE(TAG, "Data size must be <= 8");
       return false;
