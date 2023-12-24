@@ -41,6 +41,11 @@ class CANDriver {
                  esp_err_to_name(status));
         continue;
       }
+
+      if (alerts & TWAI_ALERT_TX_FAILED) {
+        ESP_LOGE(TAG, "TX failed");
+      }
+
       if (alerts & TWAI_ALERT_BUS_RECOVERED) {
         ESP_LOGI(TAG, "Bus recovered");
         self.bus_locked = false;
@@ -85,7 +90,7 @@ class CANDriver {
 
     twai_general_config_t general_config =
         TWAI_GENERAL_CONFIG_DEFAULT(tx, rx, twai_mode_t::TWAI_MODE_NORMAL);
-    twai_timing_config_t timing_config = TWAI_TIMING_CONFIG_1MBITS();
+    twai_timing_config_t timing_config = TWAI_TIMING_CONFIG_50KBITS();
     twai_filter_config_t filter_config = TWAI_FILTER_CONFIG_ACCEPT_ALL();
 
     general_config.rx_queue_len = 100;
@@ -114,13 +119,16 @@ class CANDriver {
   bool SendStd(uint32_t id, std::vector<uint8_t> const& data) {
     static const char* TAG = "Send#CANDriver";
 
+    ESP_LOGI(TAG, "Sending CAN message: %ld", id);
+    ESP_LOG_BUFFER_HEXDUMP(TAG, data.data(), data.size(), ESP_LOG_INFO);
+
     if (data.size() > 8) {
       ESP_LOGE(TAG, "Data size must be <= 8");
       return false;
     }
 
     twai_message_t msg = {
-        .ss = 1,
+        .extd = 0,
         .identifier = id,
         .data_length_code = (uint8_t)data.size(),
         .data = {0},
@@ -141,8 +149,51 @@ class CANDriver {
   }
 };
 
-class App {
+constexpr const uint8_t kDeviceId = 2;
+
+class KoroboCANDriver {
+ public:
+  using PongListener = std::function<void(uint8_t device)>;
+
+ private:
   CANDriver can_;
+
+  std::vector<PongListener> pong_listeners_;
+
+  void HandleCanMessage(uint32_t id, std::vector<uint8_t> const& data) {
+    if (id == 0x80) {
+      can_.SendStd(0x81 + kDeviceId, {kDeviceId});
+    } else if (0x81 <= id && id <= 0x8F) {
+      const uint8_t device = id - 0x81;
+      for (auto& cb : pong_listeners_) {
+        cb(device);
+      }
+    }
+  }
+
+ public:
+  KoroboCANDriver() : can_() {}
+
+  void Init(gpio_num_t tx, gpio_num_t rx) {
+    can_.Init(tx, rx);
+
+    can_.AddRxCallback(0,
+                       [this](uint32_t id, std::vector<uint8_t> const& data) {
+                         this->HandleCanMessage(id, data);
+                       });
+  }
+
+  void SendControl(std::vector<uint8_t> const& data) {
+    can_.SendStd(0x40, data);
+  }
+
+  void Ping() { can_.SendStd(0x80, {0x00}); }
+
+  void OnPong(PongListener cb) { pong_listeners_.emplace_back(cb); }
+};
+
+class App {
+  KoroboCANDriver can_;
 
   stm32::ota::InitConfig& GetInitConfig() {
     using stm32::ota::InitConfig;
@@ -201,23 +252,6 @@ class App {
     return init_config;
   }
 
-  void HandleRoboCtrl(std::vector<uint8_t>& data) {
-    const int chunks = data.size() / 8;
-    for (int i = 0; i < chunks; i++) {
-      std::vector<uint8_t> chunk(data.begin() + i * 8,
-                                 data.begin() + (i + 1) * 8);
-      can_.SendStd(0x200 + i, chunk);
-
-      ESP_LOG_BUFFER_HEX("CAN", chunk.data(), chunk.size());
-    }
-
-    std::vector last_chunk(data.begin() + chunks * 8, data.end());
-    if (!last_chunk.empty()) {
-      can_.SendStd(0x200 + chunks, last_chunk);
-      ESP_LOG_BUFFER_HEX("CAN", last_chunk.data(), last_chunk.size());
-    }
-  }
-
   static esp_err_t RoboCtrl(httpd_req_t* req) {
     static const char* TAG = "RoboCtrl";
 
@@ -234,33 +268,25 @@ class App {
 
     esp_err_t ret = httpd_ws_recv_frame(req, &ws_pkt, 0);
     if (ret != ESP_OK) {
-      // ESP_LOGE(TAG, "httpd_ws_recv_frame failed to get frame len with %d",
-      // ret);
       return ret;
     }
 
     if (ws_pkt.len) {
       auto buf = std::vector<uint8_t>(ws_pkt.len + 1, 0);
-
       ws_pkt.payload = buf.data();
+
       ret = httpd_ws_recv_frame(req, &ws_pkt, ws_pkt.len);
       if (ret != ESP_OK) {
         ESP_LOGE(TAG, "httpd_ws_recv_frame failed with %d", ret);
         return ret;
       }
 
-      ESP_LOGI(TAG, "Got packet with message: %s", ws_pkt.payload);
-      app.HandleRoboCtrl(buf);
+      app.can_.SendControl(buf);
     }
     return ret;
   }
 
- public:
-  App() : can_() {}
-
-  void Main() {
-    can_.Init(GPIO_NUM_15, GPIO_NUM_4);
-
+  stm32::ota::OTAServer StartOTAServer() {
     auto& init_config = this->GetInitConfig();
     stm32::ota::OTAServer ota_server(idf::GPIONum(22), init_config);
 
@@ -275,18 +301,46 @@ class App {
       httpd_register_uri_handler(server, &uri);
     });
 
-    ESP_LOGI("Main/CAN", "Sending test message");
-    can_.SendStd(0x200, {0x01, 0x02, 0x03, 0x04, 0x05, 0x06});
-    ESP_LOGI("Main/CAN", "Adding callback");
-    can_.AddRxCallback(0x201,
-                       [](uint32_t id, std::vector<uint8_t> const& data) {
-                         ESP_LOGI("CAN", "Got message with id: %ld", id);
-                         ESP_LOG_BUFFER_HEX("CAN", data.data(), data.size());
-                       });
-    ESP_LOGI("Main/CAN", "Done");
-
-    while (1) vTaskDelay(1);
+    return ota_server;
   }
+
+ public:
+  App() : can_() {}
+
+  void MainImplA() {
+    can_.Init(GPIO_NUM_15, GPIO_NUM_4);
+
+    ESP_LOGI("Manager", "Init");
+
+    can_.OnPong(
+        [](uint8_t device) { ESP_LOGI("Manager", "Pong from %d", device); });
+
+    while (1) {
+      can_.Ping();
+      vTaskDelay(2000 / portTICK_PERIOD_MS);
+    }
+
+    if (0) {
+      stm32::ota::OTAServer ota_server = this->StartOTAServer();
+      while (1) vTaskDelay(1);
+    }
+  }
+
+  void MainImplB() {
+    CANDriver can;
+    can.Init(GPIO_NUM_15, GPIO_NUM_4);
+    can.AddRxCallback(0, [](uint32_t id, std::vector<uint8_t> const& data) {
+      ESP_LOGI("Manager", "Got message: %#lx", id);
+      ESP_LOG_BUFFER_HEXDUMP("Manager", data.data(), data.size(), ESP_LOG_INFO);
+    });
+
+    while (1) {
+      can.SendStd(0x40, {0x00});
+      vTaskDelay(1000 / portTICK_PERIOD_MS);
+    }
+  }
+
+  void Main() { this->MainImplA(); }
 };
 
 extern "C" void app_main(void) {

@@ -1,53 +1,75 @@
 #include "mbed.h"
 #include "rtos.h"
 
+#include <vector>
+
 using namespace std::chrono_literals;
 
-Ticker ticker;
+using namespace rtos;
+
 DigitalOut led1(LED1);
-CAN can(PB_8, PB_9, 1000000);
 
-char counter = 0;
-void ReceiveLoop() {
-  CANMessage msg;
-  while (1) {
-    if (can.read(msg)) {
-      printf("Message received ID=0x%#x: ", msg.id);
-      for (int i = 0; i < msg.len; i++) {
-        printf("%02x ", msg.data[i]);
+class KoroboCANDriver {
+  CAN can_;
+
+  Thread thread_;
+
+  inline void WriteMessage(uint32_t id, std::vector<uint8_t> const &data) {
+    CANMessage msg;
+    msg.id = id;
+    msg.len = data.size();
+    std::copy(data.begin(), data.end(), msg.data);
+    can_.write(msg);
+  }
+
+  inline void HandleMessage(CANMessage const &message) {
+    if (message.id == 0x80)  // global ping
+    {
+      WriteMessage(0x81, {0x02});
+    }
+  }
+
+  void ThreadMain() {
+    while (1) {
+      if (can_.rderror() || can_.tderror()) {
+        printf("E\n");
+        can_.reset();
+        ThisThread::sleep_for(10ms);
       }
-      printf("\n");
+
+      CANMessage msg;
+      if (can_.read(msg)) {
+        HandleMessage(msg);
+      }
+    }
+  }
+
+ public:
+  KoroboCANDriver(PinName rx, PinName tx, int freqency = 50E3)
+      : can_(rx, tx, freqency) {}
+
+  void Init() {
+    can_.reset();
+    can_.frequency(50E3);
+    can_.mode(CAN::Normal);
+
+    if (thread_.get_state() == Thread::Running) {
+      thread_.terminate();
     }
 
-    ThisThread::sleep_for(1ms);
+    thread_.start(callback(this, &KoroboCANDriver::ThreadMain));
   }
-}
-void SendLoop() {
-  int i = 0;
+};
 
-  while (1) {
-    CANMessage msg(0x0, "\0", 1, CANData, CANStandard);
-    msg.data[0] = i;
-    auto r = can.write(msg);
-    if (r == 0) {
-      printf("failed to send message\n");
-    }
-    i++;
-    ThisThread::sleep_for(1000ms);
-  }
-}
+int main(int argc, char const *argv[]) {
+  KoroboCANDriver can(PB_8, PB_9);
 
-int main() {
-  printf("main()\n");
-
-  Thread t;
-  t.start(ReceiveLoop);
-
-  Thread t2;
-  t2.start(SendLoop);
+  can.Init();
 
   while (1) {
     led1 = !led1;
     ThisThread::sleep_for(500ms);
   }
+
+  return 0;
 }
