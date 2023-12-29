@@ -36,6 +36,7 @@ class CANDriver {
       if (status == ESP_ERR_TIMEOUT) {
         continue;
       }
+      printf("Alerts: %#03lx\n", alerts);
       if (status != ESP_OK) {
         ESP_LOGE(TAG, "Failed to read TWAI alerts: %s",
                  esp_err_to_name(status));
@@ -90,7 +91,7 @@ class CANDriver {
 
     twai_general_config_t general_config =
         TWAI_GENERAL_CONFIG_DEFAULT(tx, rx, twai_mode_t::TWAI_MODE_NORMAL);
-    twai_timing_config_t timing_config = TWAI_TIMING_CONFIG_50KBITS();
+    twai_timing_config_t timing_config = TWAI_TIMING_CONFIG_25KBITS();
     twai_filter_config_t filter_config = TWAI_FILTER_CONFIG_ACCEPT_ALL();
 
     general_config.rx_queue_len = 100;
@@ -221,29 +222,42 @@ class App {
             .bl_id = 1,
         }},
         .serial_proxies = {InitConfig::SerialProxy{.id = 1, .uart_port_id = 1}},
-        .network_profiles = {InitConfig::NetworkProfile{
-                                 .id = 2,
-                                 .is_ap = true,
-                                 .is_static = true,
-                                 .ssid = "ESP32",
-                                 .password = "esp32-network",
-                                 .hostname = "esp32",
-                                 .ip = 0xc0a80001,
-                                 .subnet = 0xffffff00,
-                                 .gateway = 0xc0a80001,
-                             },
-                             InitConfig::NetworkProfile{
-                                 .id = 3,
-                                 .is_ap = false,
-                                 .is_static = false,
-                                 .ssid = "3-303-Abe 2.4Ghz",
-                                 .password = "syochnetwork",
-                                 .hostname = "esp32",
-                                 .ip = 0,
-                                 .subnet = 0,
-                                 .gateway = 0,
-                             }},
-        .active_network_profile_id = 3,
+        .network_profiles =
+            {//
+             InitConfig::NetworkProfile{
+                 .id = 2,
+                 .is_ap = true,
+                 .is_static = true,
+                 .ssid = "ESP32",
+                 .password = "esp32-network",
+                 .hostname = "esp32",
+                 .ip = 0xc0a80001,
+                 .subnet = 0xffffff00,
+                 .gateway = 0xc0a80001,
+             },
+             InitConfig::NetworkProfile{
+                 .id = 3,
+                 .is_ap = false,
+                 .is_static = false,
+                 .ssid = "3-303-Abe 2.4Ghz",
+                 .password = "syochnetwork",
+                 .hostname = "esp32",
+                 .ip = 0,
+                 .subnet = 0,
+                 .gateway = 0,
+             },
+             InitConfig::NetworkProfile{
+                 .id = 4,
+                 .is_ap = false,
+                 .is_static = false,
+                 .ssid = "syoch-windows",
+                 .password = "pw51pw51pw",
+                 .hostname = "esp32",
+                 .ip = 0,
+                 .subnet = 0,
+                 .gateway = 0,
+             }},
+        .active_network_profile_id = 4,
         .primary_stm32_id = 2};
 
     return init_config;
@@ -304,7 +318,7 @@ class App {
  public:
   App() : can_() {}
 
-  void MainImplA() {
+  void Main() {
     can_.Init(GPIO_NUM_15, GPIO_NUM_4);
 
     ESP_LOGI("Manager", "Init");
@@ -312,32 +326,19 @@ class App {
     can_.OnPong(
         [](uint8_t device) { ESP_LOGI("Manager", "Pong from %d", device); });
 
-    while (1) {
-      can_.Ping();
-      vTaskDelay(2000 / portTICK_PERIOD_MS);
-    }
+    xTaskCreate(
+        [](void* args) {
+          auto& app = *static_cast<App*>(args);
+          while (1) {
+            app.can_.Ping();
+            vTaskDelay(pdMS_TO_TICKS(2000));
+          }
+        },
+        "PingTask", 4096, this, 1, NULL);
 
-    if (0) {
-      stm32::ota::OTAServer ota_server = this->StartOTAServer();
-      while (1) vTaskDelay(1);
-    }
+    // stm32::ota::OTAServer ota_server = this->StartOTAServer();
+    while (1) vTaskDelay(1);
   }
-
-  void MainImplB() {
-    CANDriver can;
-    can.Init(GPIO_NUM_15, GPIO_NUM_4);
-    can.AddRxCallback(0, [](uint32_t id, std::vector<uint8_t> const& data) {
-      ESP_LOGI("Manager", "Got message: %#lx", id);
-      ESP_LOG_BUFFER_HEXDUMP("Manager", data.data(), data.size(), ESP_LOG_INFO);
-    });
-
-    while (1) {
-      can.SendStd(0x40, {0x00});
-      vTaskDelay(1000 / portTICK_PERIOD_MS);
-    }
-  }
-
-  void Main() { this->MainImplA(); }
 };
 
 extern "C" void app_main(void) {

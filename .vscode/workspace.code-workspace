@@ -5,6 +5,9 @@
 		},
 		{
 			"path": "../stm32-main"
+		},
+		{
+			"path": "../stm32-enc"
 		}
 	],
 	"settings": {
