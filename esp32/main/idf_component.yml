@@ -6,5 +6,8 @@ dependencies:
   nnctroboticsclub/libstm-ota:
     git: ssh://git@github.com/nnctroboticsclub/libstm-ota.git
 
+  ok-home/logic-analyzer:
+    git: git@github.com:ok-home/logic_analyzer.git
+
   # nnctroboticsclub/data-proxy:
   #   git: ssh://git@github.com/nnctroboticsclub/data-proxy.git

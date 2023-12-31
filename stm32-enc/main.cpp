@@ -11,40 +11,48 @@ DigitalOut led1(LED1);
 
 class KoroboCANDriver {
   CAN can_;
+  int freqency_ = 50E3;
 
   Thread thread_;
 
-  inline void WriteMessage(uint32_t id, std::vector<uint8_t> const &data) {
+  // 1 -> success
+  inline int WriteMessage(uint32_t id, std::vector<uint8_t> const &data) {
     CANMessage msg;
     msg.id = id;
     msg.len = data.size();
     std::copy(data.begin(), data.end(), msg.data);
-    can_.write(msg);
+    return can_.write(msg);
   }
 
   inline void HandleMessage(CANMessage const &message) {
     if (message.id == 0x80)  // global ping
     {
-      WriteMessage(0x81, {0x02});
+      WriteMessage(0x82, {});
     } else if (message.id == 0x40)  // Control packet
     {
       if (message.data[0] == 0x02) {
         WriteMessage(0x82, {0x02});
       }
+    } else {
+      printf("Message received from %#lx: ", message.id);
+      for (int i = 0; i < message.len; i++) {
+        printf("%02x ", message.data[i]);
+      }
+      printf("\n");
     }
   }
 
   void ThreadMain() {
+    CANMessage msg;
     while (1) {
       if (can_.rderror() || can_.tderror()) {
         can_.reset();
 
-        printf("E rd=%d td=%d\n", can_.rderror(), can_.tderror());
+        // printf("E rd=%d td=%d\n", can_.rderror(), can_.tderror());
 
-        ThisThread::sleep_for(50ms);
+        ThisThread::sleep_for(10ms);
       }
 
-      CANMessage msg;
       if (can_.read(msg)) {
         HandleMessage(msg);
       }
@@ -53,33 +61,33 @@ class KoroboCANDriver {
 
  public:
   KoroboCANDriver(PinName rx, PinName tx, int freqency = 50E3)
-      : can_(rx, tx, freqency) {}
+      : can_(rx, tx, freqency), freqency_(freqency) {}
 
-  void Init() {
-    can_.reset();
-    can_.frequency(25E3);
+  void Init() { thread_.start(callback(this, &KoroboCANDriver::ThreadMain)); }
 
-    can_.mode(CAN::Silent);
-
-    if (thread_.get_state() == Thread::Running) {
-      thread_.terminate();
-    }
-
-    thread_.start(callback(this, &KoroboCANDriver::ThreadMain));
+  // 1 -> success
+  int Send(uint32_t id, std::vector<uint8_t> const &data) {
+    return WriteMessage(id, data);
   }
 };
 
 int main(int argc, char const *argv[]) {
   printf("main() started\n");
-  /* KoroboCANDriver can(PB_8, PB_9);
-
+  KoroboCANDriver can(PB_8, PB_9, 1E6);
 
   can.Init();
 
   while (1) {
     led1 = !led1;
     ThisThread::sleep_for(500ms);
-  } */
+
+    if (led1) {
+      auto status = can.Send(0xa0, {0x01, 0x02, 0x03, 0x04, 0x05});
+      if (status != 1) {
+        printf("Failed to send message: %d\n", status);
+      }
+    }
+  }
 
   return 0;
 }

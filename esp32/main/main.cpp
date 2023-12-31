@@ -12,6 +12,8 @@
 
 #include <esp_log.h>
 
+#include <logic_analyzer_ws.h>
+
 class CANDriver {
  public:
   using Callback =
@@ -34,9 +36,10 @@ class CANDriver {
       auto status =
           twai_read_alerts_v2(driver, &alerts, 1000 / portTICK_PERIOD_MS);
       if (status == ESP_ERR_TIMEOUT) {
+        vTaskDelay(pdMS_TO_TICKS(10));
         continue;
       }
-      printf("Alerts: %#03lx\n", alerts);
+
       if (status != ESP_OK) {
         ESP_LOGE(TAG, "Failed to read TWAI alerts: %s",
                  esp_err_to_name(status));
@@ -78,8 +81,6 @@ class CANDriver {
           cb.second(msg.identifier, data);
         }
       }
-
-      vTaskDelay(pdMS_TO_TICKS(1));
     }
   }
 
@@ -91,7 +92,7 @@ class CANDriver {
 
     twai_general_config_t general_config =
         TWAI_GENERAL_CONFIG_DEFAULT(tx, rx, twai_mode_t::TWAI_MODE_NORMAL);
-    twai_timing_config_t timing_config = TWAI_TIMING_CONFIG_25KBITS();
+    twai_timing_config_t timing_config = TWAI_TIMING_CONFIG_1MBITS();
     twai_filter_config_t filter_config = TWAI_FILTER_CONFIG_ACCEPT_ALL();
 
     general_config.rx_queue_len = 100;
@@ -310,6 +311,8 @@ class App {
           .is_websocket = true,
       };
       httpd_register_uri_handler(server, &uri);
+
+      logic_analyzer_register_uri_handlers(server);
     });
 
     return ota_server;
@@ -331,12 +334,13 @@ class App {
           auto& app = *static_cast<App*>(args);
           while (1) {
             app.can_.Ping();
-            vTaskDelay(pdMS_TO_TICKS(2000));
+            vTaskDelay(pdMS_TO_TICKS(1000));
           }
         },
         "PingTask", 4096, this, 1, NULL);
 
     // stm32::ota::OTAServer ota_server = this->StartOTAServer();
+
     while (1) vTaskDelay(1);
   }
 };

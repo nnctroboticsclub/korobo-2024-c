@@ -30,6 +30,13 @@ dependencies:
       path: .
       type: git
     version: 6442fc50226f2a96c994fa84cccf413be52a0f31
-manifest_hash: 1327bb3e01ef16efc99b36f7f587ce66088a23973dd448a5d7d99a8c5521e525
+  ok-home/logic-analyzer:
+    component_hash: 80824716308ad222489be561dfaf2b70f279ee82b1b56714603152708ed5dcf7
+    source:
+      git: git@github.com:ok-home/logic_analyzer.git
+      path: .
+      type: git
+    version: 2e9884d937ee220752d5d6347f2f8e195a809628
+manifest_hash: 853596753eee9f4160718baa8aa92252f703d7acea6718d0c5036846349059c1
 target: esp32
 version: 1.0.0

@@ -8,6 +8,9 @@
 		},
 		{
 			"path": "../stm32-enc"
+		},
+		{
+			"path": "../esp32"
 		}
 	],
 	"settings": {
@@ -80,7 +83,8 @@
 			"streambuf": "cpp",
 			"thread": "cpp",
 			"typeinfo": "cpp",
-			"variant": "cpp"
+			"variant": "cpp",
+			"protocol_examples_common.h": "c"
 		}
 	}
 }

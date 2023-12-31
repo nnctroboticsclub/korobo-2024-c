@@ -16,6 +16,7 @@
 |  0x40 | 0x40 |     Control1 | TT Payload | Controller input packet |
 |  0x60 | 0x60 |    Query Val | ID ID      | Query value             |
 |  0x61 | 0x61 | Value notify | TT Payload | Value Notify            |
+|  0x70 | 0x7x |    CAN Error | XX XX      | TX, RX Errors           |
 |  0x80 | 0x80 |         ping |            | ping to all device      |
 |  0x81 | 0x8F |         pong |            | pong from device        |
 
