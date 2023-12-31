@@ -55,16 +55,28 @@ d:
 me:
 	cd /workspaces/korobo2023/esp32 && idf.py monitor
 
+cs1:
+	cd /workspaces/korobo2023/stm32-main && \
+		mbed compile
+
+fs1:
+	cd /workspaces/korobo2023/stm32-main && \
+		sudo cp BUILD/*/GCC_ARM/stm32-main.bin $(MNT1)/binary.bin
+
 ms1:
 	cd /workspaces/korobo2023/stm32-main && \
-		mbed compile && \
-		sudo cp BUILD/*/GCC_ARM/stm32-main.bin $(MNT1)/binary.bin && \
 		mbed sterm --port $(ACM1)
+
+cs2:
+	cd /workspaces/korobo2023/stm32-enc && \
+		mbed compile
+
+fs2:
+	cd /workspaces/korobo2023/stm32-enc && \
+		sudo cp BUILD/*/GCC_ARM/stm32-enc.bin $(MNT2)/binary.bin
 
 ms2:
 	cd /workspaces/korobo2023/stm32-enc && \
-		mbed compile && \
-		sudo cp BUILD/*/GCC_ARM/stm32-enc.bin $(MNT2)/binary.bin && \
 		mbed sterm --port $(ACM2)
 
 lu:
