@@ -22,7 +22,7 @@ class DistributedCAN {
   inline void HandleMessage(CANMessage const &message) {
     if (message.id == 0x80)  // global ping
     {
-      WriteMessage(0x81, {});
+      WriteMessage(0x81 + can_id, {});
     } else if (message.id == 0x40)  // Control packet
     {
       if (message.data[0] == 0x02) {

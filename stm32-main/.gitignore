@@ -1,4 +1,5 @@
 BUILD
 bno055
 mbed-os
+Adafruit_BNO055
 __pycache__

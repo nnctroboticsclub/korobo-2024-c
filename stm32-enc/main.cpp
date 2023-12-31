@@ -14,7 +14,7 @@ DigitalOut led1(LED1);
 DistributedCAN can(CAN_ID, PB_8, PB_9, 1E6);
 
 int main(int argc, char const *argv[]) {
-  printf("main() started\n");
+  printf("main() started; CAN_ID=%d\n", CAN_ID);
   can.Init();
 
   return 0;

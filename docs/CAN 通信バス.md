@@ -24,12 +24,22 @@
 
 ### コントローラー入力パケット
 
-|  01  |  2  |  34567  | Payload | description     |
-| ---- | --- | ------- | ------- | --------------- |
-|  00  |  0  |   ID    | 0 byte  | button pressed  |
-|  00  |  1  |   ID    | 0 byte  | button released |
-|  01  |  0  |   ID    | 1 byte  | Joystick X      |
-|  01  |  1  |   ID    | 1 byte  | Joystick Y      |
-|  10  |  0  |   ID    | 0 byte  | Do Action (ID)  |
-|  11  |  0  |   ID    | 0 byte  | Stop driving    |
-|  11  |  1  |   ID    | 0 byte  | Start driving   |
+| 012 |  34567  | Payload | description     |
+| --- | ------- | ------- | --------------- |
+| 000 |   ID    | 0 byte  | button pressed  |
+| 001 |   ID    | 0 byte  | button released |
+| 010 |   ID    | 1 byte  | Joystick X      |
+| 011 |   ID    | 1 byte  | Joystick Y      |
+| 100 |   ID    | 0 byte  | Do Action (ID)  |
+| 110 |   ID    | 0 byte  | Stop driving    |
+| 111 |   ID    | 0 byte  | Start driving   |
+
+## 交流ロボコン 2023 長岡 C 用コントローラー ID リスト
+
+| type | ID  | name           | description |
+| ---- | --- | -------------- | ----------- |
+|  00x | 0   | Launch         | 射出         |
+|  000 | 1   | Steer Rot PID  | ステア角 PID  |
+|  001 | 1   | Steer Rot Raw  | ステア角速度  |
+|  010 | 0   | Steer Move     | ステア移動    |
+|  010 | 0   | Steer Rotation | ステア角度    |

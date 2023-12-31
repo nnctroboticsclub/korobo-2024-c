@@ -67,6 +67,8 @@ ms1:
 	cd /workspaces/korobo2023/stm32-main && \
 		mbed sterm --port $(ACM1)
 
+ts1: cs1 fs1 ms1
+
 cs2:
 	cd /workspaces/korobo2023/stm32-enc && \
 		mbed compile
@@ -78,6 +80,8 @@ fs2:
 ms2:
 	cd /workspaces/korobo2023/stm32-enc && \
 		mbed sterm --port $(ACM2)
+
+ts2: cs2 fs2 ms2
 
 lu:
 	@{ for D in /sys/bus/usb/devices/*; do \
