@@ -53,16 +53,27 @@ struct AngleJoystick2D {
     angle_ = packet[1];
   }
 };
+struct Boolean {
+  bool value_;
+
+  Boolean() : value_(false) {}
+
+  void Parse(RawPacket const& packet) { value_ = packet[0] & 0x20; }
+  void Parse(RawPacketData const& packet) { value_ = packet[0] & 0x20; }
+};
 
 struct ControllerStatus {
   Joystick2D steer_move;
   AngleJoystick2D steer_angle;
+  Boolean steer_rotation_pid_enabled;
 
   void Parse(RawPacket const& packet) {
     if (packet.element_id == 0x40) {
       steer_move.Parse(packet.data);
     } else if (packet.element_id == 0x41) {
       steer_angle.Parse(packet.data);
+    } else if ((packet.element_id & 0xdf) == 0x01) {
+      steer_rotation_pid_enabled.Parse(packet.data);
     }
   }
 };
