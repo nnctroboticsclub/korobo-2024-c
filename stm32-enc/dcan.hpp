@@ -16,6 +16,8 @@ class SimpleCAN {
 
   std::vector<RxCallback> rx_callbacks_;
 
+  int filter_id_ = 0;
+
   Thread thread_;
 
   void ThreadMain() {
@@ -47,9 +49,16 @@ class SimpleCAN {
   SimpleCAN(PinName rx, PinName tx, int freqency = 50E3)
       : can_(rx, tx, freqency), freqency_(freqency) {}
 
-  void Init() { thread_.start(callback(this, &SimpleCAN::ThreadMain)); }
+  void Init() {
+    can_.filter(0x000, 0x000, CANStandard, 0);
+    thread_.start(callback(this, &SimpleCAN::ThreadMain));
+  }
 
   void OnRx(int priority, RxCallback cb) { rx_callbacks_.emplace_back(cb); }
+
+  void Accept(uint id, uint mask) {
+    can_.filter(id, mask, CANStandard, filter_id_++);
+  }
 };
 
 class DistributedCAN {
@@ -102,5 +111,7 @@ class DistributedCAN {
   void OnEvent(uint8_t element_id,
                std::function<void(std::vector<uint8_t>)> cb) {
     callbacks_.emplace_back(EventCallback{element_id, cb});
+
+    can_.Accept(element_id, 0xFF);
   }
 };
