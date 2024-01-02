@@ -67,12 +67,18 @@ class Gyro {
         fay = 0;
       }
 
-      float dt = timer.read();
+      int dt = timer.read_ms();
       timer.reset();
 
       orientation_ = yaw;
-      velocity_x_ += fax * dt;
-      velocity_y_ += fay * dt;
+
+      /**
+       * a [m/s^2], dt [ms] -> v [m/s]
+       * dt [ms] -> dt * 1E-3 [s]
+       * a [m/s^2] * (dt * 1E-3) [s] -> v [m/s]
+       */
+      velocity_x_ += fax * dt * 0.001;
+      velocity_y_ += fay * dt * 0.001;
     }
   }
 
@@ -85,7 +91,7 @@ class Gyro {
   }
 
  public:
-  Gyro() : bno055_(PC_9, PA_8) {}
+  Gyro(PinName SDA, PinName SDL) : bno055_(SDA, SDL) {}
 
   void Init(bool monitor = false) {
     thread.start(callback(this, &Gyro::ThreadMain));
