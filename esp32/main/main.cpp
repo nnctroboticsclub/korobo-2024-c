@@ -96,7 +96,7 @@ class CANDriver {
     twai_filter_config_t filter_config = TWAI_FILTER_CONFIG_ACCEPT_ALL();
 
     general_config.rx_queue_len = 100;
-    general_config.tx_queue_len = 0;
+    general_config.tx_queue_len = 100;
     general_config.alerts_enabled = TWAI_ALERT_ALL;
 
     auto status = twai_driver_install_v2(&general_config, &timing_config,
@@ -339,7 +339,7 @@ class App {
         },
         "PingTask", 4096, this, 1, NULL);
 
-    // stm32::ota::OTAServer ota_server = this->StartOTAServer();
+    stm32::ota::OTAServer ota_server = this->StartOTAServer();
 
     while (1) vTaskDelay(1);
   }
