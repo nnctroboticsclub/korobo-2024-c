@@ -17,12 +17,12 @@ dependencies:
       type: idf
     version: 5.2.0
   nnctroboticsclub/libstm-ota:
-    component_hash: c375605f3ead9069aaefd24abd721221f44be2cd1575ea247020b129363666b1
+    component_hash: 031d5f2eff01bb164d78c7582c18e468d25435b3594be3be5f656f83e13fc3df
     source:
       git: ssh://git@github.com/nnctroboticsclub/libstm-ota.git
       path: .
       type: git
-    version: 2affc5523818d062caf76a16f0bea1bcbc7717a2
+    version: 67b55b229d32bdb5bc31010ff5e24dd8313e4ff5
   nnctroboticsclub/stream-base:
     component_hash: a855f54e26f7d503d858baff5c0a8ccc152a84225540a32c6b2c5793970ca2dc
     source:

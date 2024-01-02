@@ -1,8 +1,27 @@
 {
     "configurations": [
         {
-            "name": "esp32",
-            "compileCommands": "${workspaceFolder}/build/compile_commands.json",
+            "name": "Nucleo F446RE",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "${workspaceFolder}/bno055",
+                "${workspaceFolder}/mbed-os",
+                "${workspaceFolder}/Adafruit_BNO055",
+                "${workspaceFolder}/mbed-os/targets/TARGET_STM/TARGET_STM32F4/TARGET_STM32F446xE/TARGET_NUCLEO_F446RE"
+            ],
+            "defines": [
+                "DEVICE_CAN",
+                "DEVICE_I2C",
+                "MBED_CONF_RTOS_PRESENT"
+            ],
+            "forcedInclude": [
+                "${workspaceFolder}/BUILD/NUCLEO_F446RE/GCC_ARM/mbed_config.h",
+                "${workspaceFolder}/mbed-os/rtos/include/rtos/rtos.h"
+            ],
+            "compilerPath": "/usr/bin/gcc",
+            "cStandard": "c17",
+            "cppStandard": "gnu++17",
+            "intelliSenseMode": "linux-gcc-x64"
         }
     ],
     "version": 4
