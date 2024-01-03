@@ -58,8 +58,7 @@ struct Boolean {
 
   Boolean() : value_(false) {}
 
-  void Parse(RawPacket const& packet) { value_ = packet[0] & 0x20; }
-  void Parse(RawPacketData const& packet) { value_ = packet[0] & 0x20; }
+  void Parse(RawPacket const& packet) { value_ = packet.element_id & 0x20; }
 };
 
 struct ControllerStatus {
@@ -73,7 +72,9 @@ struct ControllerStatus {
     } else if (packet.element_id == 0x41) {
       steer_angle.Parse(packet.data);
     } else if ((packet.element_id & 0xdf) == 0x01) {
-      steer_rotation_pid_enabled.Parse(packet.data);
+      steer_rotation_pid_enabled.Parse(packet);
+    } else {
+      printf("unknown packet: %02x\n", packet.element_id);
     }
   }
 };
