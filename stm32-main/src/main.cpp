@@ -6,12 +6,17 @@
 
 #include "identify.h"
 #include "dcan.hpp"
-#include "bno055.hpp"
-#include "controller.hpp"
+#include "controller/korobo/2023c.hpp"
+
+#include "robotics/filter/pid.hpp"
+#include "robotics/sensor/bno055.hpp"
 
 using namespace std::chrono_literals;
 
 using namespace rtos;
+
+template <typename T>
+using PID = robotics::filter::PID<T>;
 
 class App {
  public:
@@ -31,9 +36,15 @@ class App {
  private:
   DistributedCAN can_;
   Gyro gyro_;
-  controller::ControllerStatus controller_status_;
+  PID<float> steer_motor_0_pid{0, 0, 0};
+  PID<float> steer_motor_1_pid{0, 0, 0};
+  PID<float> steer_motor_2_pid{0, 0, 0};
+  PID<float> steer_motor_gyro_pid{0, 0, 0};
+
+  controller::Korobo2023Controller controller_status_;
 
   Thread monitor_thread_;
+  Thread robo_thread_;
 
   void MonitorThread() {
     while (1) {
@@ -46,10 +57,23 @@ class App {
     }
   }
 
+  void RoboThread() {
+    //* Steering
+  }
+
  public:
   App(Config const& config)
       : can_(config.can.id, config.can.rx, config.can.tx, config.can.freqency),
-        gyro_(config.bno055.sda, config.bno055.scl) {}
+        gyro_(config.bno055.sda, config.bno055.scl) {
+    controller_status_.steer_motor_0_pid.ConnectGain(
+        steer_motor_0_pid.GetController());
+    controller_status_.steer_motor_1_pid.ConnectGain(
+        steer_motor_1_pid.GetController());
+    controller_status_.steer_motor_2_pid.ConnectGain(
+        steer_motor_2_pid.GetController());
+    controller_status_.steer_gyro_pid.ConnectGain(
+        steer_motor_gyro_pid.GetController());
+  }
 
   void Init() {
     can_.Init();
@@ -62,6 +86,7 @@ class App {
 
   void Main() {
     monitor_thread_.start(callback(this, &App::MonitorThread));
+    robo_thread_.start(callback(this, &App::RoboThread));
 
     while (1) {
       ThisThread::sleep_for(1s);

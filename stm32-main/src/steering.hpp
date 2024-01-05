@@ -8,17 +8,14 @@ class MotorInfo {
   float motor_angle_deg;  // deg
 };
 
-typename<int N> class Steering {
+template <int N>
+class Steering {
  public:
   std::array<MotorInfo, N> motors;
-
- public:
   Toggle toggle;
 
  private:
   PID<Vector2> move_pid = new Vector2PID(1.0f, 0.00f, 0.00f);
-
- private:
   PID<float> angle_pid = new PID(0.7f, 0.30f, 0.15f);
 
   void MoveAndRotate(Vector2 velocity_raw, float rotation_in_raw,
