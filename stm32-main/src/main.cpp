@@ -37,9 +37,11 @@ class App {
 
   void MonitorThread() {
     while (1) {
-      printf("steer: m(%+3d %+3d)r(%d %d)\n", controller_status_.steer_move.x,
-             controller_status_.steer_move.y, controller_status_.steer_angle.x,
-             controller_status_.steer_angle.y);
+      printf("steer: m(%+3d %+3d)r(%d %d p%d)\n",
+             controller_status_.steer_move.x, controller_status_.steer_move.y,
+             controller_status_.steer_angle.magnitude_,
+             controller_status_.steer_angle.angle_,
+             controller_status_.steer_rotation_pid_enabled.value_);
       ThisThread::sleep_for(50ms);
     }
   }
