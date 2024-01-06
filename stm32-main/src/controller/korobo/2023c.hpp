@@ -4,6 +4,7 @@
 #include "../angle_joystick.hpp"
 #include "../boolean.hpp"
 #include "../pid.hpp"
+#include "../encoder.hpp"
 
 namespace controller {
 struct Korobo2023Controller {
@@ -35,4 +36,26 @@ struct Korobo2023Controller {
     }
   }
 };
+
+struct Korobo2023MainValueStore {
+  Encoder steer_motor_0_encoder;
+  Encoder steer_motor_1_encoder;
+  Encoder steer_motor_2_encoder;
+  Encoder dummy_encoder;
+
+  void Parse(RawPacket const& packet) {
+    if (packet.element_id == 0x60) {
+      steer_motor_0_encoder.Parse(packet);
+    } else if (packet.element_id == 0x61) {
+      steer_motor_1_encoder.Parse(packet);
+    } else if (packet.element_id == 0x62) {
+      steer_motor_2_encoder.Parse(packet);
+    } else if (packet.element_id == 0x63) {
+      dummy_encoder.Parse(packet);
+    } else {
+      printf("unknown packet: %02x\n", packet.element_id);
+    }
+  }
+};
+
 }  // namespace controller
