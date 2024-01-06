@@ -11,7 +11,8 @@
             "defines": [
                 "DEVICE_CAN",
                 "DEVICE_I2C",
-                "MBED_CONF_RTOS_PRESENT"
+                "MBED_CONF_RTOS_PRESENT",
+                "DEVICE_INTERRUPTIN"
             ],
             "forcedInclude": [
                 "${workspaceFolder}/BUILD/NUCLEO_F446RE/GCC_ARM/mbed_config.h",
