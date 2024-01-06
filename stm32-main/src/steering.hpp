@@ -1,4 +1,12 @@
+#pragma once
 
+#include "robotics/filter/pid.hpp"
+#include "vector.hpp"
+#include <ikakoMDC.h>
+
+namespace steering {
+
+using robotics::filter::PID;
 
 class MotorInfo {
  public:
@@ -8,6 +16,12 @@ class MotorInfo {
   float motor_angle_deg;  // deg
 };
 
+class SteeringMotor {
+  PID<float> pid{0, 0, 0};
+
+ public:
+};
+
 template <int N>
 class Steering {
  public:
@@ -15,8 +29,8 @@ class Steering {
   Toggle toggle;
 
  private:
-  PID<Vector2> move_pid = new Vector2PID(1.0f, 0.00f, 0.00f);
-  PID<float> angle_pid = new PID(0.7f, 0.30f, 0.15f);
+  PID<Vector<float, 2>> velocity_pid{1.0f, 0.00f, 0.00f};
+  PID<float> angle_pid{0.7f, 0.30f, 0.15f};
 
   void MoveAndRotate(Vector2 velocity_raw, float rotation_in_raw,
                      float angle_power) {
@@ -58,3 +72,4 @@ class Steering {
     }
   }
 };
+}  // namespace steering
