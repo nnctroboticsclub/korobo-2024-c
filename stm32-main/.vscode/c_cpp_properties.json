@@ -6,7 +6,6 @@
                 "${workspaceFolder}/**",
                 "${workspaceFolder}/bno055",
                 "${workspaceFolder}/mbed-os",
-                "${workspaceFolder}/Adafruit_BNO055",
                 "${workspaceFolder}/mbed-os/targets/TARGET_STM/TARGET_STM32F4/TARGET_STM32F446xE/TARGET_NUCLEO_F446RE"
             ],
             "defines": [
@@ -16,7 +15,8 @@
             ],
             "forcedInclude": [
                 "${workspaceFolder}/BUILD/NUCLEO_F446RE/GCC_ARM/mbed_config.h",
-                "${workspaceFolder}/mbed-os/rtos/include/rtos/rtos.h"
+                "${workspaceFolder}/mbed-os/rtos/include/rtos/rtos.h",
+                "${workspaceFolder}/mbed-os/targets/TARGET_STM/TARGET_STM32F4/TARGET_STM32F446xE/TARGET_NUCLEO_F446RE/PinNames.h"
             ],
             "compilerPath": "/usr/bin/gcc",
             "cStandard": "c17",
