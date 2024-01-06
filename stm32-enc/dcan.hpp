@@ -114,4 +114,8 @@ class DistributedCAN {
 
     can_.Accept(element_id, 0xFF);
   }
+
+  void Send(uint8_t element_id, std::vector<uint8_t> const &data) {
+    can_.Send(element_id, data);
+  }
 };
