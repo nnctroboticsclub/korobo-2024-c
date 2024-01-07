@@ -1,35 +1,48 @@
 #pragma once
 
 #include "robotics/filter/pid.hpp"
+#include "robotics/fusion/angled_motor.hpp"
 #include "vector.hpp"
 #include <ikakoMDC.h>
 
-namespace steering {
+namespace robotics::comopnent {
 
 using robotics::filter::PID;
 
-class MotorInfo {
- public:
-  Wheel wheel;
-
- public:
-  float motor_angle_deg;  // deg
-};
-
+template <typename T>
 class SteeringMotor {
-  PID<float> pid{0, 0, 0};
+  output::Motor<T> drive_;
+  fusion::AngledMotor<T> steer_;
+
+  Vector<float, 2> normal_vector;
 
  public:
+  SteeringMotor(output::Motor<T> drive, fusion::AngledMotor<T> steer,
+                float angle_deg)
+      : drive_(drive), steer_(steer) {
+    normal_vector = Vector<float, 2>(cos(angle_deg * M_PI / 180),
+                                     sin(angle_deg * M_PI / 180));
+  }
+
+  void Power(Vector<float, 2> vector) {
+    float magnitude = vector.Magnitude();
+    float angle = atan2(vector[1], vector[0]) * 180 / M_PI;
+
+    steer_.SetTargetAngle(angle);
+    drive_.SetSpeed(magnitude);
+  }
+
+  void Update(float dt) { steer_.Update(dt); }
 };
 
-template <int N>
+template <typename T, int N>
 class Steering {
  public:
   std::array<MotorInfo, N> motors;
   Toggle toggle;
 
  private:
-  PID<Vector<float, 2>> velocity_pid{1.0f, 0.00f, 0.00f};
+  std::array PID<Vector<float, 2>> velocity_pid{1.0f, 0.00f, 0.00f};
   PID<float> angle_pid{0.7f, 0.30f, 0.15f};
 
   void MoveAndRotate(Vector2 velocity_raw, float rotation_in_raw,
@@ -72,4 +85,4 @@ class Steering {
     }
   }
 };
-}  // namespace steering
+}  // namespace robotics::comopnent
