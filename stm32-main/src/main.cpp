@@ -55,12 +55,14 @@ class App {
       //        controller_status_.steer_angle.magnitude_,
       //        controller_status_.steer_angle.angle_,
       //        controller_status_.steer_rotation_pid_enabled.value_);
-      printf("v: steer: %lf %lf %lf, d: %lf\n",
-             value_store.steer_motor_0_encoder.value_,
-             value_store.steer_motor_1_encoder.value_,
-             value_store.steer_motor_2_encoder.value_,
-             value_store.dummy_encoder.value_);
-      ThisThread::sleep_for(50ms);
+      // printf("v: steer: %lf %lf %lf, d: %lf\n",
+      //        value_store.steer_motor_0_encoder.value_,
+      //        value_store.steer_motor_1_encoder.value_,
+      //        value_store.steer_motor_2_encoder.value_,
+      //        value_store.dummy_encoder.value_);
+      printf("g: v:(%lf %lf), a: (%lf %lf %lf), ha: %lf\n",
+             gyro_.GetHorizontalOrientation());
+      ThisThread::sleep_for(100ms);
     }
   }
 

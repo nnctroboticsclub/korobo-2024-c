@@ -1,3 +1,4 @@
+namespace robotics::filter {
 template <typename T>
 class AngleNormalizer {
   T prev_input = 0;
@@ -18,3 +19,4 @@ class AngleNormalizer {
     return value;
   }
 };
+}  // namespace robotics::filter

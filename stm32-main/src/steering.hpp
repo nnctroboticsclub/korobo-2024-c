@@ -1,7 +1,11 @@
 #pragma once
 
+#include <memory>
+
 #include "robotics/filter/pid.hpp"
+#include "robotics/filter/angle_smoother.hpp"
 #include "robotics/fusion/angled_motor.hpp"
+#include "robotics/sensor/gyro/base.hpp"
 #include "vector.hpp"
 #include <ikakoMDC.h>
 
@@ -9,79 +13,65 @@ namespace robotics::comopnent {
 
 using robotics::filter::PID;
 
-template <typename T>
 class SteeringMotor {
-  output::Motor<T> drive_;
-  fusion::AngledMotor<T> steer_;
+  std::shared_ptr<output::Motor<float>> drive_;
+  fusion::AngledMotor<float> steer_;
 
-  Vector<float, 2> normal_vector;
+  Vector<float, 2> normal_vector_;
 
  public:
-  SteeringMotor(output::Motor<T> drive, fusion::AngledMotor<T> steer,
-                float angle_deg)
+  SteeringMotor(std::shared_ptr<output::Motor<float>> drive,
+                fusion::AngledMotor<float> steer, float angle_deg)
       : drive_(drive), steer_(steer) {
-    normal_vector = Vector<float, 2>(cos(angle_deg * M_PI / 180),
-                                     sin(angle_deg * M_PI / 180));
+    normal_vector_ = Vector<float, 2>(cos(angle_deg * M_PI / 180),
+                                      sin(angle_deg * M_PI / 180));
   }
 
-  void Power(Vector<float, 2> vector) {
+  void SetPowerRaw(Vector<float, 2> vector) {
     float magnitude = vector.Magnitude();
     float angle = atan2(vector[1], vector[0]) * 180 / M_PI;
 
     steer_.SetTargetAngle(angle);
-    drive_.SetSpeed(magnitude);
+    drive_->SetSpeed(magnitude);
+  }
+
+  /**
+   * @brief Set Driving Power of the Swerve Drive
+   *
+   * @param velocity Velocity Vector
+   * @param rotation Rotation Power (0.0 ~ 360.0)
+   */
+  void SetDrivePower(Vector<float, 2> velocity, float rotation) {
+    auto vector = velocity + normal_vector_ * rotation / 90;
+    SetPowerRaw(vector);
   }
 
   void Update(float dt) { steer_.Update(dt); }
 };
 
-template <typename T, int N>
 class Steering {
  public:
-  std::array<MotorInfo, N> motors;
-  Toggle toggle;
+  std::shared_ptr<sensor::gyro::Base> gyro;
+
+  std::array<SteeringMotor, 3> motors;
+  filter::AngleNormalizer<float> rot_in_normalizer;
+  filter::AngleNormalizer<float> self_rot_y_normalizer;
 
  private:
-  std::array PID<Vector<float, 2>> velocity_pid{1.0f, 0.00f, 0.00f};
   PID<float> angle_pid{0.7f, 0.30f, 0.15f};
 
-  void MoveAndRotate(Vector2 velocity_raw, float rotation_in_raw,
-                     float angle_power) {
-    float dt = Time.deltaTime;
-    float move_to_factor = move_factor_slider.value;
-    float rotation_factor = rotation_factor_slider.value;
-
-    // Velocity PID
-    Vector3 velocity3d = -GetComponent<Rigidbody>().velocity;
-    Vector2 velocity_fb = new Vector2(velocity3d.x, velocity3d.z);
-    Vector2 velocity = toggle.isOn
-                           ? velocity_raw
-                           : move_pid.Update(velocity_raw, velocity_fb, dt);
-
+  void MoveAndRotate(Vector<float, 2> velocity, float rotation_in_raw,
+                     float angle_power, float dt) {
     // Rotation PID
     float rotation_in = rot_in_normalizer.Update(rotation_in_raw);
     float rotation_fb =
-        self_rot_y_normalizer.Update(transform.localRotation.eulerAngles.y);
+        self_rot_y_normalizer.Update(gyro->GetHorizontalOrientation());
     float rotation = toggle.isOn
                          ? rotation_in
                          : angle_pid.Update(rotation_in, rotation_fb, dt);
 
-    for (int i = 0; i < motors.Count; i++) {
-      MotorInfo motor = motors[i];
-
-      float normal_angle_deg = motor.motor_angle_deg + 90.0f;
-      Vector2 rotation_vector =
-          rotation / 90 *
-          new Vector2(Mathf.Cos(normal_angle_deg * Mathf.Deg2Rad),
-                      Mathf.Sin(normal_angle_deg * Mathf.Deg2Rad));
-
-      Vector2 move_vector = 2.0f / motors.Count * velocity;
-
-      Vector2 vector =
-          move_to_factor * move_vector + rotation_factor * rotation_vector;
-      vector *= power_factor_slider.value;
-
-      motor.wheel.Power(vector);
+    for (auto& motor : motors) {
+      motor.SetDrivePower(velocity, rotation);
     }
   }
 };
