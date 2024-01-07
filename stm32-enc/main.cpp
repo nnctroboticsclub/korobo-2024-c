@@ -72,16 +72,16 @@ class DistributedPseudoAbsEncoder {
   struct {
     bool enabled;
     DistributedCAN* can;
-    int id;
+    int dev_id;
   } attached_can_;
 
   void Send_() {
     if (!attached_can_.enabled) return;
 
-    uint16_t value = encoder_.GetAngle() / 360.0f * 0xffff;
+    uint16_t value = (int16_t)(encoder_.GetAngle() / 360.0f * 0x7FFF);
 
     std::vector<uint8_t> payload;
-    payload.push_back(attached_can_.id);
+    payload.push_back(0x60 | attached_can_.dev_id);
     payload.push_back(value >> 8);
     payload.push_back(value & 0xFF);
 
@@ -94,10 +94,10 @@ class DistributedPseudoAbsEncoder {
 
   double GetAngle() { return encoder_.GetAngle(); }
 
-  void AttachSend(DistributedCAN& can, int id) {
+  void AttachSend(DistributedCAN& can, int dev_id) {
     attached_can_.enabled = true;
     attached_can_.can = &can;
-    attached_can_.id = id;
+    attached_can_.dev_id = dev_id;
   }
 
   void Update() {
@@ -138,7 +138,7 @@ class App {
       printf("encoders: %lf %lf %lf %lf\n", encoder_sm0_.GetAngle(),
              encoder_sm1_.GetAngle(), encoder_sm2_.GetAngle(),
              encoder_dummy_.GetAngle());
-      wait_ns(50E6);
+      wait_ns(500E6);
     }
   }
   void SenderThread() {
@@ -157,7 +157,12 @@ class App {
         encoder_sm0_(config.encoder_sm0),
         encoder_sm1_(config.encoder_sm1),
         encoder_sm2_(config.encoder_sm2),
-        encoder_dummy_(config.encoder_dummy) {}
+        encoder_dummy_(config.encoder_dummy) {
+    encoder_sm0_.AttachSend(can_, 0x00);
+    encoder_sm1_.AttachSend(can_, 0x01);
+    encoder_sm2_.AttachSend(can_, 0x02);
+    encoder_dummy_.AttachSend(can_, 0x03);
+  }
 
   void Init() { can_.Init(); }
 
