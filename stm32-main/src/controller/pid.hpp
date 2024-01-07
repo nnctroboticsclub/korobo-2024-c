@@ -9,18 +9,23 @@ class PID {
   using PIDController = robotics::filter::IPIDController;
   using PIDControllerPtr = std::shared_ptr<PIDController>;
 
+  int assigned_id_;
   PIDControllerPtr controller;
 
  public:
-  PID() : controller(nullptr) {}
+  PID(int id) : assigned_id_(id), controller(nullptr) {}
 
   void ConnectGain(PIDControllerPtr controller) {
     this->controller = controller;
   }
 
-  void Parse(RawPacket const& packet) {
+  bool Parse(RawPacket const& packet) {
+    if (packet.element_id != (0xA0 | assigned_id_)) {
+      return false;
+    }
+
     if (controller == nullptr) {
-      return;
+      return false;
     }
 
     float p = packet.data[0] / 255.0f * 10.0f;
@@ -30,6 +35,8 @@ class PID {
     controller->UpdateKp(p);
     controller->UpdateKi(i);
     controller->UpdateKd(d);
+
+    return true;
   }
 };
 

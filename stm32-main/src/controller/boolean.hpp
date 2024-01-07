@@ -5,11 +5,18 @@
 namespace controller {
 
 struct Boolean {
+  int assigned_id_;
   bool value_;
 
-  Boolean() : value_(false) {}
+  Boolean(int id) : assigned_id_(id), value_(false) {}
 
-  void Parse(RawPacket const& packet) { value_ = packet.element_id & 0x20; }
+  bool Parse(RawPacket const& packet) {
+    if ((packet.element_id & 0xDF) != assigned_id_) {
+      return false;
+    }
+    value_ = packet.element_id & 0x20;
+    return true;
+  }
 };
 
 }  // namespace controller
