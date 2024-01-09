@@ -30,10 +30,13 @@ class Steering {
   filter::AngleNormalizer<float> self_rot_y_normalizer;
 
  private:
-  void MoveAndRotate(Vector<float, 2> velocity, float rotation_in_raw,
-                     float angle_power, float dt) {
+  void Update(float dt) {
+    auto velocity = move.GetValue();
+    float rotation_in_raw = angle.GetValue().angle;
+    float angle_power = angle.GetValue().magnitude;
+
     // Rotation PID
-    float rotation_in = rot_in_normalizer.Update(rotation_in_raw);
+    float rotation_in = rot_in_normalizer.Update(rotation_in_raw, angle_power);
     float rotation_fb =
         self_rot_y_normalizer.Update(gyro->GetHorizontalOrientation());
     float rotation = rotation_pid_enabled.GetValue()
