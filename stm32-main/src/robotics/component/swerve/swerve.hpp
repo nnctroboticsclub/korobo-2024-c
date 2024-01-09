@@ -8,8 +8,10 @@
 #include "robotics/filter/angle_smoother.hpp"
 #include "robotics/fusion/angled_motor.hpp"
 #include "robotics/sensor/gyro/base.hpp"
+#include "robotics/input/input.hpp"
+#include "robotics/types/angle_joystick_2d.hpp"
+
 #include "vector.hpp"
-#include <ikakoMDC.h>
 
 namespace robotics::component::swerve {
 
@@ -18,6 +20,10 @@ class Steering {
   std::array<Motor, 3> motors;
   std::shared_ptr<sensor::gyro::Base> gyro;
   filter::PID<float> angle_pid{0.7f, 0.30f, 0.15f};
+
+  input::Input<bool> rotation_pid_enabled;
+  input::Input<Vector<float, 2>> move;
+  input::Input<types::AngleStick2D> angle;
 
  private:
   filter::AngleNormalizer<float> rot_in_normalizer;
@@ -30,7 +36,7 @@ class Steering {
     float rotation_in = rot_in_normalizer.Update(rotation_in_raw);
     float rotation_fb =
         self_rot_y_normalizer.Update(gyro->GetHorizontalOrientation());
-    float rotation = toggle.isOn
+    float rotation = rotation_pid_enabled.GetValue()
                          ? rotation_in
                          : angle_pid.Update(rotation_in, rotation_fb, dt);
 

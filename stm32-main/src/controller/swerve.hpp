@@ -1,10 +1,12 @@
 #pragma once
 
-#include "../joystick.hpp"
-#include "../angle_joystick.hpp"
-#include "../boolean.hpp"
-#include "../pid.hpp"
-#include "../encoder.hpp"
+#include "joystick.hpp"
+#include "angle_joystick.hpp"
+#include "boolean.hpp"
+#include "pid.hpp"
+#include "encoder.hpp"
+
+#include "../robotics/component/swerve/swerve.hpp"
 
 namespace controller::component {
 struct SwerveController {
@@ -35,4 +37,26 @@ struct SwerveValueStore {
   }
 };
 
-}  // namespace controller
+struct Swerve {
+  SwerveController controller;
+  SwerveValueStore value_store;
+
+  std::shared_ptr<robotics::component::swerve::Steering> steering;
+
+  robotics::component::swerve::Steering const& GetSteering() {
+    if (steering) {
+      return *steering;
+    }
+
+    steering = std::make_shared<robotics::component::swerve::Steering>();
+    controller.gyro_pid.ConnectGain(steering->angle_pid.GetController());
+    controller.motor_0_pid.ConnectGain(
+        steering->motors[0].GetAnglePIDController());
+    controller.motor_1_pid.ConnectGain(
+        steering->motors[1].GetAnglePIDController());
+    controller.motor_2_pid.ConnectGain(
+        steering->motors[2].GetAnglePIDController());
+  }
+};
+
+}  // namespace controller::component

@@ -23,6 +23,10 @@ class Motor {
                                       std::sin(angle_deg * M_PI / 180));
   }
 
+  std::shared_ptr<filter::IPIDController> GetAnglePIDController() {
+    return steer_.GetPIDController();
+  }
+
   void SetPowerRaw(Vector<float, 2> vector) {
     float magnitude = vector.Magnitude();
     float angle = std::atan2(vector[1], vector[0]) * 180 / M_PI;
