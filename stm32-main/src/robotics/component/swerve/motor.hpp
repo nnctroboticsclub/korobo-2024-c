@@ -11,7 +11,7 @@ namespace robotics::component::swerve {
 
 struct MotorConfig {
   std::unique_ptr<output::Motor<float>> drive;
-  std::unique_ptr<fusion::AngledMotor<float>> steer;
+  fusion::AngledMotorConfig<float> steer;
   int angle_deg;
 };
 
@@ -26,7 +26,7 @@ class MotorConfigBuilder {
     return *this;
   }
 
-  MotorConfigBuilder& Steer(std::unique_ptr<fusion::AngledMotor<float>> steer) {
+  MotorConfigBuilder& Steer(fusion::AngledMotorConfig<float>&& steer) {
     config.steer = std::move(steer);
     return *this;
   }
