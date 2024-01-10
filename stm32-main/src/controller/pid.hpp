@@ -2,41 +2,22 @@
 
 #include "packet.hpp"
 #include "../robotics/filter/pid.hpp"
+#include "../robotics/types/pid_gains.hpp"
+#include "controller_base.hpp"
 
 namespace controller {
 
-class PID {
-  using PIDController = robotics::filter::IPIDController;
-  using PIDControllerPtr = std::shared_ptr<PIDController>;
+struct PID : public ControllerBase<robotics::PIDGains> {
+  using ControllerBase::ControllerBase;
 
-  int assigned_id_;
-  PIDControllerPtr controller;
-
- public:
-  PID(int id) : assigned_id_(id), controller(nullptr) {}
-
-  void ConnectGain(PIDControllerPtr controller) {
-    this->controller = controller;
+  bool Filter(RawPacket const& packet) override {
+    return packet.element_id == (0xA0 | assigned_id_);
   }
 
-  bool Parse(RawPacket const& packet) {
-    if (packet.element_id != (0xA0 | assigned_id_)) {
-      return false;
-    }
-
-    if (controller == nullptr) {
-      return false;
-    }
-
-    float p = packet.data[0] / 255.0f * 10.0f;
-    float i = packet.data[1] / 255.0f * 10.0f;
-    float d = packet.data[2] / 255.0f * 10.0f;
-
-    controller->UpdateKp(p);
-    controller->UpdateKi(i);
-    controller->UpdateKd(d);
-
-    return true;
+  void Parse(RawPacket const& packet) override {
+    value.p = packet[0] / 255.0f * 10.0f;
+    value.i = packet[1] / 255.0f * 10.0f;
+    value.d = packet[2] / 255.0f * 10.0f;
   }
 };
 

@@ -4,25 +4,25 @@
 
 #include "motor.hpp"
 
-#include "robotics/filter/pid.hpp"
-#include "robotics/filter/angle_smoother.hpp"
-#include "robotics/fusion/angled_motor.hpp"
-#include "robotics/sensor/gyro/base.hpp"
-#include "robotics/input/input.hpp"
-#include "robotics/types/angle_joystick_2d.hpp"
+#include "../../filter/pid.hpp"
+#include "../../filter/angle_smoother.hpp"
+#include "../../fusion/angled_motor.hpp"
+#include "../../sensor/gyro/base.hpp"
+#include "../../input/input.hpp"
+#include "../../types/angle_joystick_2d.hpp"
+#include "../../types/joystick_2d.hpp"
+#include "../../types/vector.hpp"
 
-#include "vector.hpp"
-
-namespace robotics::component::swerve {
-
-class Steering {
+namespace robotics::component {
+namespace swerve {
+class Swerve {
  public:
   std::array<Motor, 3> motors;
   std::shared_ptr<sensor::gyro::Base> gyro;
   filter::PID<float> angle_pid{0.7f, 0.30f, 0.15f};
 
   input::Input<bool> rotation_pid_enabled;
-  input::Input<Vector<float, 2>> move;
+  input::Input<types::JoyStick2D> move;
   input::Input<types::AngleStick2D> angle;
 
  private:
@@ -48,4 +48,7 @@ class Steering {
     }
   }
 };
-}  // namespace robotics::component::swerve
+}  // namespace swerve
+
+using Swerve = swerve::Swerve;
+}  // namespace robotics::component

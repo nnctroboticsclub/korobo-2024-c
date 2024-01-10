@@ -1,23 +1,20 @@
 #pragma once
 
-#include "packet.hpp"
+#include "controller_base.hpp"
+#include "../robotics/types/angle_joystick_2d.hpp"
 
 namespace controller {
 
-struct AngleJoystick2D {
-  int assigned_id_;
-  uint8_t magnitude_;
-  uint8_t angle_;  // clockwise
+struct AngleJoystick2D : public ControllerBase<robotics::AngleStick2D> {
+  using ControllerBase::ControllerBase;
 
-  AngleJoystick2D(int id) : assigned_id_(id), magnitude_(0), angle_(0) {}
+  bool Filter(RawPacket const& packet) override {
+    return packet.element_id == (0x40 | assigned_id_);
+  }
 
-  bool Parse(RawPacket const& packet) {
-    if (packet.element_id != (0x40 | assigned_id_)) {
-      return false;
-    }
-    magnitude_ = packet[0];
-    angle_ = packet[1];
-    return false;
+  void Parse(RawPacket const& packet) override {
+    value.magnitude = packet[0];
+    value.angle = packet[1];
   }
 };
 

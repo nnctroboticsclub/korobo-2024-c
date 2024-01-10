@@ -1,26 +1,21 @@
 #pragma once
 
 #include "packet.hpp"
+#include "../robotics/input/input.hpp"
+#include "../robotics/types/joystick_2d.hpp"
+#include "controller_base.hpp"
 
 namespace controller {
+struct JoyStick : public ControllerBase<robotics::JoyStick2D> {
+  using ControllerBase::ControllerBase;
 
-struct Joystick {
-  int assigned_id_;
-  int8_t x;
-  int8_t y;
+  bool Filter(RawPacket const& packet) override {
+    return packet.element_id == (0x40 | assigned_id_);
+  }
 
-  Joystick(int id) : assigned_id_(id), x(0), y(0) {}
-
-  bool Parse(RawPacket const& packet) {
-    if (packet.element_id != (0x40 | assigned_id_)) {
-      return false;
-    }
-    x = packet[0] - 127;
-    if (x == 1) x = 0;
-    y = packet[1] - 127;
-    if (y == 1) y = 0;
-
-    return true;
+  void Parse(RawPacket const& packet) override {
+    value[0] = (packet[0] - 127) / 127.0f;
+    value[1] = (packet[1] - 127) / 127.0f;
   }
 };
 

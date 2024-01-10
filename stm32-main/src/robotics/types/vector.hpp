@@ -1,5 +1,7 @@
 #pragma once
 
+namespace robotics {
+inline namespace types {
 template <typename T, int N>
 class Vector {
   std::array<T, N> data_;
@@ -76,3 +78,6 @@ class Vector {
                   data_[0] * rhs.data_[1] - data_[1] * rhs.data_[0]);
   }
 };
+}  // namespace types
+
+}  // namespace robotics

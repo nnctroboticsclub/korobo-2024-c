@@ -6,20 +6,20 @@
 namespace controller {
 
 template <typename T>
-struct InputBase {
- private:
-  bool Filter(RawPacket const &packet) virtual = 0;
+struct ControllerBase {
+ public:
+  virtual bool Filter(RawPacket const &packet) = 0;
 
-  void Parse(RawPacket const &packet) virtual = 0;
+  virtual void Parse(RawPacket const &packet) = 0;
 
  public:
   int assigned_id_;
   T value;
   robotics::input::IInputController<T> *controller = nullptr;
 
-  InputBase(int id) : assigned_id_(id) {}
+  ControllerBase(int id) : assigned_id_(id), value() {}
 
-  bool Parse(RawPacket const &packet) {
+  bool Pass(RawPacket const &packet) {
     if (!this->Filter(packet)) {
       return false;
     }
@@ -27,7 +27,7 @@ struct InputBase {
     this->Parse(packet);
 
     if (controller != nullptr) {
-      controller->SetValue({x, y});
+      controller->SetValue(value);
     }
 
     return true;

@@ -16,7 +16,7 @@ class AngledMotor {
   AngledMotor(filter::PID<float> angle, sensor::encoder::Absolute<T>& encoder)
       : angle_(angle), encoder_(encoder) {}
 
-  std::shared_ptr<filter::IPIDController> GetPIDController() {
+  input::IInputController<PIDGains>* GetPIDController() {
     return angle_.GetController();
   }
 

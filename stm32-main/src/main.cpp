@@ -9,8 +9,8 @@
 #include "dcan.hpp"
 #include "controller/korobo/2023c.hpp"
 
-#include "robotics/filter/pid.hpp"
-#include "robotics/sensor/bno055.hpp"
+#include "robotics/component/swerve/swerve.hpp"
+#include "robotics/sensor/gyro/bno055.hpp"
 
 using namespace std::chrono_literals;
 
@@ -35,11 +35,8 @@ class App {
 
  private:
   DistributedCAN can_;
-  Gyro gyro_;
-  PID<float> steer_motor_0_pid{0, 0, 0};
-  PID<float> steer_motor_1_pid{0, 0, 0};
-  PID<float> steer_motor_2_pid{0, 0, 0};
-  PID<float> steer_motor_gyro_pid{0, 0, 0};
+  robotics::sensor::gyro::Gyro gyro_;
+  robotics::component::Swerve swerve_;
 
   controller::Korobo2023Controller controller_status_;
   controller::Korobo2023MainValueStore value_store;
@@ -60,8 +57,7 @@ class App {
       //        value_store.steer_motor_1_encoder.value_,
       //        value_store.steer_motor_2_encoder.value_,
       //        value_store.dummy_encoder.value_);
-      printf("g: v:(%lf %lf), a: (%lf %lf %lf), ha: %lf\n",
-             gyro_.GetHorizontalOrientation());
+      printf("g: v:(%lf %lf)\n", gyro_.GetHorizontalOrientation());
       ThisThread::sleep_for(100ms);
     }
   }
@@ -73,16 +69,7 @@ class App {
  public:
   App(Config const& config)
       : can_(config.can.id, config.can.rx, config.can.tx, config.can.freqency),
-        gyro_(config.bno055.sda, config.bno055.scl) {
-    controller_status_.steer_motor_0_pid.ConnectGain(
-        steer_motor_0_pid.GetController());
-    controller_status_.steer_motor_1_pid.ConnectGain(
-        steer_motor_1_pid.GetController());
-    controller_status_.steer_motor_2_pid.ConnectGain(
-        steer_motor_2_pid.GetController());
-    controller_status_.steer_gyro_pid.ConnectGain(
-        steer_motor_gyro_pid.GetController());
-  }
+        gyro_(config.bno055.sda, config.bno055.scl) {}
 
   void Init() {
     can_.Init();

@@ -1,5 +1,6 @@
 #pragma once
-namespace robotics::types {
+namespace robotics {
+inline namespace types {
 
 class AngleStick2D {
  public:
@@ -16,4 +17,5 @@ class AngleStick2D {
   bool operator!=(AngleStick2D const& other) const { return !(*this == other); }
 };
 
-}  // namespace robotics::types
+}  // namespace types
+}  // namespace robotics

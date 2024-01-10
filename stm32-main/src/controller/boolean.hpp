@@ -1,21 +1,19 @@
 #pragma once
 
-#include "packet.hpp"
+#include "controller_base.hpp"
+#include "../robotics/types/angle_joystick_2d.hpp"
 
 namespace controller {
 
-struct Boolean {
-  int assigned_id_;
-  bool value_;
+struct Boolean : public ControllerBase<bool> {
+  using ControllerBase::ControllerBase;
 
-  Boolean(int id) : assigned_id_(id), value_(false) {}
+  bool Filter(RawPacket const& packet) override {
+    return (packet.element_id & 0xDF) == assigned_id_;
+  }
 
-  bool Parse(RawPacket const& packet) {
-    if ((packet.element_id & 0xDF) != assigned_id_) {
-      return false;
-    }
-    value_ = packet.element_id & 0x20;
-    return true;
+  void Parse(RawPacket const& packet) override {
+    value = packet.element_id & 0x20;
   }
 };
 

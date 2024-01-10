@@ -4,7 +4,7 @@
 #include <rtos.h>
 
 #include "base.hpp"
-#include "../../vector.hpp"
+#include "../../types/vector.hpp"
 
 #ifndef PI
 #define PI 3.14159265358979323846

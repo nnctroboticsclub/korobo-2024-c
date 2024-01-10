@@ -3,7 +3,7 @@
 #include <math.h>
 #include <memory>
 
-#include "../../../vector.hpp"
+#include "../../types/vector.hpp"
 #include "../../fusion/angled_motor.hpp"
 #include "../../output/motor.hpp"
 
@@ -23,7 +23,7 @@ class Motor {
                                       std::sin(angle_deg * M_PI / 180));
   }
 
-  std::shared_ptr<filter::IPIDController> GetAnglePIDController() {
+  input::IInputController<PIDGains> *GetAnglePIDController() {
     return steer_.GetPIDController();
   }
 
@@ -41,7 +41,7 @@ class Motor {
    * @param velocity Velocity Vector
    * @param rotation Rotation Power (0.0 ~ 360.0)
    */
-  void SetDrivePower(Vector<float, 2> velocity, float rotation) {
+  void SetDrivePower(Vector<int8_t, 2> velocity, float rotation) {
     auto vector = velocity + normal_vector_ * rotation / 90;
     SetPowerRaw(vector);
   }

@@ -1,24 +1,21 @@
 #pragma once
 
 #include "packet.hpp"
+#include "controller_base.hpp"
 
 namespace controller {
 
-struct Encoder {
-  int assigned_id_;
-  double value_;
+struct Encoder : public ControllerBase<double> {
+  using ControllerBase::ControllerBase;
 
-  Encoder(int id) : value_(0), assigned_id_(id) {}
+  bool Filter(RawPacket const& packet) override {
+    return packet.element_id == (0x60 | assigned_id_);
+  }
 
-  bool Parse(RawPacket const& packet) {
-    if (packet.element_id != (0x60 | assigned_id_)) {
-      return false;
-    }
-
+  void Parse(RawPacket const& packet) override {
     int16_t value = packet.data[0] << 8 | packet.data[1];
 
-    value_ = value * 360.0f / 0x7FFF;
-    return true;
+    value = value * 360.0f / 0x7FFF;
   }
 };
 

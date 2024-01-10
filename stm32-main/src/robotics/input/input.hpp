@@ -25,12 +25,18 @@ class Input {
 
  private:
   T value_;
+  std::unique_ptr<Controller> controller_;
 
  public:
-  Input() : value_(0) {}
+  Input() : value_() {}
   Input(T value) : value_(value) {}
 
-  Controller GetController() { return Controller(this); }
+  Controller *GetController() {
+    if (controller_ == nullptr) {
+      controller_ = std::make_unique<Controller>(this);
+    }
+    return controller_.get();
+  }
 
   T const &GetValue() const { return value_; }
 };
