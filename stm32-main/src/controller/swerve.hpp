@@ -47,7 +47,8 @@ struct SwerveController {
   void Connect(robotics::component::Swerve& swerve) {
     move.Connect(swerve.move.GetController());
     angle.Connect(swerve.angle.GetController());
-    rotation_pid_enabled.Connect(swerve.rotation_pid_enabled.GetController());
+    rotation_pid_enabled.Connect(
+        swerve.rotation_direct_mode_enabled.GetController());
     motor_0_pid.Connect(swerve.motors[0].GetAnglePIDController());
     motor_1_pid.Connect(swerve.motors[1].GetAnglePIDController());
     motor_2_pid.Connect(swerve.motors[2].GetAnglePIDController());
@@ -55,6 +56,7 @@ struct SwerveController {
   }
 };
 
+template <typename T>
 struct SwerveValueStore {
   struct Config {
     int motor_0_encoder_id = 0;
@@ -62,9 +64,9 @@ struct SwerveValueStore {
     int motor_2_encoder_id = 2;
   };
 
-  Encoder motor_0_encoder;
-  Encoder motor_1_encoder;
-  Encoder motor_2_encoder;
+  Encoder<T> motor_0_encoder;
+  Encoder<T> motor_1_encoder;
+  Encoder<T> motor_2_encoder;
 
   SwerveValueStore(Config const& config = {})
       : motor_0_encoder(config.motor_0_encoder_id),
