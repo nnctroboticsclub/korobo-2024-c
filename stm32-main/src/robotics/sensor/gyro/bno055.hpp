@@ -11,8 +11,8 @@
 #endif
 
 namespace robotics::sensor::gyro {
-class Gyro : public Base {
-  BNO055 bno055_;
+class BNO055 : public Base {
+  ::BNO055 bno055_;
   rtos::Thread thread;
   rtos::Thread monitor_thread;
 
@@ -55,12 +55,12 @@ class Gyro : public Base {
   }
 
  public:
-  Gyro(PinName SDA, PinName SDL) : bno055_(SDA, SDL) {}
+  BNO055(PinName SDA, PinName SDL) : bno055_(SDA, SDL) {}
 
   void Init(bool monitor = false) {
-    thread.start(callback(this, &Gyro::ThreadMain));
+    thread.start(callback(this, &BNO055::ThreadMain));
     if (monitor) {
-      monitor_thread.start(callback(this, &Gyro::Monitor));
+      monitor_thread.start(callback(this, &BNO055::Monitor));
     }
   }
 
