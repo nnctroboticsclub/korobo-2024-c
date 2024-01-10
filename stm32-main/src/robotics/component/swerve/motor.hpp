@@ -9,22 +9,44 @@
 
 namespace robotics::component::swerve {
 
-class Motor {
- public:
-  struct Config {
-    std::unique_ptr<output::Motor<float>> drive;
-    std::unique_ptr<fusion::AngledMotor<float>> steer;
-    int angle_deg;
-  };
+struct MotorConfig {
+  std::unique_ptr<output::Motor<float>> drive;
+  std::unique_ptr<fusion::AngledMotor<float>> steer;
+  int angle_deg;
+};
 
- private:
+class MotorConfigBuilder {
+  MotorConfig config;
+
+ public:
+  MotorConfigBuilder() { config.angle_deg = 0; }
+
+  MotorConfigBuilder& Drive(std::unique_ptr<output::Motor<float>> drive) {
+    config.drive = std::move(drive);
+    return *this;
+  }
+
+  MotorConfigBuilder& Steer(std::unique_ptr<fusion::AngledMotor<float>> steer) {
+    config.steer = std::move(steer);
+    return *this;
+  }
+
+  MotorConfigBuilder& Angle(int angle_deg) {
+    config.angle_deg = angle_deg;
+    return *this;
+  }
+
+  MotorConfig Build() { return std::move(config); }
+};
+
+class Motor {
   std::unique_ptr<output::Motor<float>> drive_;
   std::unique_ptr<fusion::AngledMotor<float>> steer_;
 
   Vector<float, 2> normal_vector_;
 
  public:
-  Motor(Config&& config) {
+  Motor(MotorConfig&& config) {
     drive_ = std::move(config.drive);
     steer_ = std::move(config.steer);
     normal_vector_[0] = std::cos(config.angle_deg * M_PI / 180);
