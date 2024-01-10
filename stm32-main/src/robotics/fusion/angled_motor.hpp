@@ -7,14 +7,22 @@
 namespace robotics::fusion {
 template <typename T>
 class AngledMotor {
+ public:
+  struct Config {
+    std::unique_ptr<sensor::encoder::Absolute<T>> encoder;
+    std::unique_ptr<output::Motor<T>> motor;
+  };
+
   filter::PID<float> angle_;
   float target_angle_;
-  sensor::encoder::Absolute<T>& encoder_;
-  output::Motor<T>& motor_;
+  std::unique_ptr<sensor::encoder::Absolute<T>> encoder_;
+  std::unique_ptr<output::Motor<T>> motor_;
 
  public:
-  AngledMotor(filter::PID<float> angle, sensor::encoder::Absolute<T>& encoder)
-      : angle_(angle), encoder_(encoder) {}
+  AngledMotor(Config&& config) {
+    encoder_ = std::move(config.encoder);
+    motor_ = std::move(config.motor);
+  }
 
   input::IInputController<PIDGains>* GetPIDController() {
     return angle_.GetController();
@@ -23,9 +31,9 @@ class AngledMotor {
   void SetTargetAngle(float angle) { target_angle_ = angle; }
 
   void Update(float dt) {
-    float feedback = encoder_.GetAngle();
+    float feedback = encoder_->GetAngle();
     float output = angle_.Update(target_angle_, feedback, dt);
-    motor_.SetSpeed(output);
+    motor_->SetSpeed(output);
   }
 };
 }  // namespace robotics::fusion

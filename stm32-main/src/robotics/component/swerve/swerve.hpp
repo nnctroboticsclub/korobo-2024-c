@@ -17,19 +17,31 @@ namespace robotics::component {
 namespace swerve {
 class Swerve {
  public:
-  std::array<Motor, 3> motors;
-  std::shared_ptr<sensor::gyro::Base> gyro;
+  struct Config {
+    std::array<Motor::Config, 3> motors;
+    std::shared_ptr<sensor::gyro::Base> gyro;
+  };
+
   filter::PID<float> angle_pid{0.7f, 0.30f, 0.15f};
 
-  input::Input<bool> rotation_pid_enabled;
+  input::Input<bool> rotation_direct_mode_enabled;
   input::Input<types::JoyStick2D> move;
   input::Input<types::AngleStick2D> angle;
 
  private:
+  std::array<Motor, 3> motors;
+  std::shared_ptr<sensor::gyro::Base> gyro;
+
   filter::AngleNormalizer<float> rot_in_normalizer;
   filter::AngleNormalizer<float> self_rot_y_normalizer;
 
- private:
+ public:
+  Swerve(Config&& config)
+      : motors({Motor(std::move(config.motors[0])),
+                Motor(std::move(config.motors[1])),
+                Motor(std::move(config.motors[2]))}),
+        gyro(config.gyro) {}
+
   void Update(float dt) {
     auto velocity = move.GetValue();
     float rotation_in_raw = angle.GetValue().angle;
@@ -39,7 +51,7 @@ class Swerve {
     float rotation_in = rot_in_normalizer.Update(rotation_in_raw, angle_power);
     float rotation_fb =
         self_rot_y_normalizer.Update(gyro->GetHorizontalOrientation());
-    float rotation = rotation_pid_enabled.GetValue()
+    float rotation = rotation_direct_mode_enabled.GetValue()
                          ? rotation_in
                          : angle_pid.Update(rotation_in, rotation_fb, dt);
 

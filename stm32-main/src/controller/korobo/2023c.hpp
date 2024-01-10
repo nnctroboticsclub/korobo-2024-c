@@ -10,13 +10,25 @@
 
 namespace controller {
 struct Korobo2023Controller {
+  struct Config {
+    swerve::SwerveController::Config swerve;
+  };
+
   swerve::SwerveController swerve;
+
+  Korobo2023Controller(Config const& config = {}) : swerve(config.swerve) {}
 
   bool Parse(RawPacket const& packet) { return swerve.Parse(packet); }
 };
 
 struct Korobo2023MainValueStore {
+  struct Config {
+    swerve::SwerveValueStore::Config swerve;
+  };
+
   swerve::SwerveValueStore swerve;
+
+  Korobo2023MainValueStore(Config const& config = {}) : swerve(config.swerve) {}
 
   bool Parse(RawPacket const& packet) { return swerve.Parse(packet); }
 };
