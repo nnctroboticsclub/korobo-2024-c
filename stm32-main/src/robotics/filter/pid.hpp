@@ -15,7 +15,7 @@ class PID : public input::Input<PIDGains> {
   input::IInputController<PIDGains> *controller_ = nullptr;
 
  public:
-  PID(T kP, T kI, T kD) : integral_(0), prev_error_(0) {
+  PID(T kP = 0, T kI = 0, T kD = 0) : integral_(0), prev_error_(0) {
     this->controller_ = this->GetController();
     this->controller_->SetValue({kP, kI, kD});
   }
