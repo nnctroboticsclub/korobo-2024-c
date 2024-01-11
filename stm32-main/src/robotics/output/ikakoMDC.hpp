@@ -7,6 +7,16 @@ namespace robotics::output {
 class ikakoMDCMotor : public Motor<float>, public ikakoMDC {
   int min_speed_, max_speed_;
 
+  void SetSpeed(float speed) override {
+    if (speed > 0) {
+      ikakoMDC::set_speed(speed * max_speed_);
+    } else if (speed < 0) {
+      ikakoMDC::set_speed(speed * min_speed_);
+    } else {
+      ikakoMDC::set_speed(0);
+    }
+  }
+
  public:
   ikakoMDCMotor(int motor_num, int min_speed, int max_speed)
       : ikakoMDC(                  //
@@ -18,15 +28,5 @@ class ikakoMDCMotor : public Motor<float>, public ikakoMDC {
             ),
         min_speed_(min_speed),
         max_speed_(max_speed) {}
-
-  void SetSpeed(float speed) override {
-    if (speed > 0) {
-      ikakoMDC::set_speed(speed * max_speed_);
-    } else if (speed < 0) {
-      ikakoMDC::set_speed(speed * min_speed_);
-    } else {
-      ikakoMDC::set_speed(0);
-    }
-  }
 };
 }  // namespace robotics::output
