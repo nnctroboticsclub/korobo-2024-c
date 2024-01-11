@@ -1,11 +1,19 @@
 #pragma once
 
+#include "output.hpp"
+
 namespace robotics::output {
 template <typename T>
-class Motor {
- public:
-  // Set the speed of the motor.
-  // The value of `speed` is in the range of [-1, 1].
+class Motor : public Output<T> {
+ private:
+  /**
+   * @brief Set the Speed
+   * @param speed in the range [-1, 1]
+   */
   virtual void SetSpeed(T speed) = 0;
+
+  void Update(T value) override { SetSpeed(value); }
+
+ public:
 };
 }  // namespace robotics::output
