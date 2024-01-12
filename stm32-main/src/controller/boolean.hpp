@@ -13,7 +13,7 @@ struct Boolean : public ControllerBase<bool> {
   }
 
   void Parse(RawPacket const& packet) override {
-    value = packet.element_id & 0x20;
+    this->SetValue(packet.element_id & 0x20);
   }
 };
 

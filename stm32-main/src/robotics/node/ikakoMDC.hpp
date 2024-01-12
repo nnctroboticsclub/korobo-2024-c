@@ -3,7 +3,7 @@
 #include <ikakoMDC.h>
 #include "motor.hpp"
 
-namespace robotics::output {
+namespace robotics::node {
 class ikakoMDCMotor : public Motor<float>, public ikakoMDC {
   int min_speed_, max_speed_;
 
@@ -29,4 +29,4 @@ class ikakoMDCMotor : public Motor<float>, public ikakoMDC {
         min_speed_(min_speed),
         max_speed_(max_speed) {}
 };
-}  // namespace robotics::output
+}  // namespace robotics::node

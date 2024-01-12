@@ -15,6 +15,7 @@
             "defines": [
                 "DEVICE_CAN",
                 "DEVICE_I2C",
+                "DEVICE_PWMOUT",
                 "MBED_CONF_RTOS_PRESENT"
             ],
             "forcedInclude": [

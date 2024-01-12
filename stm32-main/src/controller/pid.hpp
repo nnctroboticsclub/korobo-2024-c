@@ -15,9 +15,12 @@ struct PID : public ControllerBase<robotics::PIDGains> {
   }
 
   void Parse(RawPacket const& packet) override {
+    robotics::PIDGains value;
     value.p = packet[0] / 255.0f * 10.0f;
     value.i = packet[1] / 255.0f * 10.0f;
     value.d = packet[2] / 255.0f * 10.0f;
+
+    this->SetValue(value);
   }
 };
 

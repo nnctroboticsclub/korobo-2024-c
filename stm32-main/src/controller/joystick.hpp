@@ -1,7 +1,7 @@
 #pragma once
 
 #include "packet.hpp"
-#include "../robotics/input/input.hpp"
+#include "../robotics/node/node.hpp"
 #include "../robotics/types/joystick_2d.hpp"
 #include "controller_base.hpp"
 
@@ -14,8 +14,11 @@ struct JoyStick : public ControllerBase<robotics::JoyStick2D> {
   }
 
   void Parse(RawPacket const& packet) override {
+    robotics::JoyStick2D value;
     value[0] = (packet[0] - 127) / 127.0f;
     value[1] = (packet[1] - 127) / 127.0f;
+
+    this->SetValue(value);
   }
 };
 

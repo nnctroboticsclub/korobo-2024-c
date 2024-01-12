@@ -6,58 +6,63 @@
 
 #include "../../filter/pid.hpp"
 #include "../../filter/angle_smoother.hpp"
-#include "../../fusion/angled_motor.hpp"
+#include "../../filter/angled_motor.hpp"
 #include "../../sensor/gyro/base.hpp"
-#include "../../input/input.hpp"
+#include "../../node/node.hpp"
 #include "../../types/angle_joystick_2d.hpp"
 #include "../../types/joystick_2d.hpp"
 #include "../../types/vector.hpp"
+#include "../../types/angle.hpp"
 
 namespace robotics::component {
 namespace swerve {
 class Swerve {
  public:
   struct Config {
-    std::array<Motor::Config, 3> motors;
-    std::shared_ptr<sensor::gyro::Base> gyro;
+    float angle_offsets[3];
   };
 
-  filter::PID<float> angle_pid{0.7f, 0.30f, 0.15f};
+  Node<float> robot_angle;  // in: feedback robot angle
 
-  input::Input<bool> rotation_direct_mode_enabled;
-  input::Input<types::JoyStick2D> move;
-  input::Input<types::AngleStick2D> angle;
+  Node<types::JoyStick2D> move_ctrl;  // in: move velocity
+  Node<float> angle_ctrl;             // in: angle rotation
 
+  std::array<Motor*, 3> motors;  // for injection
+
+  filter::PID<float> angle{0.7f, 0.30f, 0.15f};  // robot angle pid
  private:
-  std::array<Motor, 3> motors;
-  std::shared_ptr<sensor::gyro::Base> gyro;
-
-  filter::AngleNormalizer<float> rot_in_normalizer;
-  filter::AngleNormalizer<float> self_rot_y_normalizer;
+  filter::AngleNormalizer<float> rot_in_normalizer;  // ctrl angle normalizer
+  filter::AngleNormalizer<float>
+      self_rot_y_normalizer;  // robot angle normalizer
 
  public:
-  Swerve(Config&& config)
-      : motors({Motor(std::move(config.motors[0])),
-                Motor(std::move(config.motors[1])),
-                Motor(std::move(config.motors[2]))}),
-        gyro(config.gyro) {}
+  Swerve(Config& config)
+      : motors{
+            new Motor(config.angle_offsets[0]),
+            new Motor(config.angle_offsets[1]),
+            new Motor(config.angle_offsets[2]),
+        } {
+    // robot_angle >> normalizer >> anglePID
+    robot_angle.Link(self_rot_y_normalizer.input);
+    self_rot_y_normalizer.output.Link(angle.fb_);
+
+    // angle_ctrl >> normalizer >> anglePID
+    angle_ctrl.Link(rot_in_normalizer.input);
+    rot_in_normalizer.output.Link(angle.goal_);
+
+    for (size_t i = 0; i < 3; i++) {
+      // move_ctrl >> motor
+      move_ctrl.Link(motors[i]->velocity);
+
+      // anglePID >> motor
+      angle.output_.Link(motors[i]->rotation);
+    }
+  }
 
   void Update(float dt) {
-    auto velocity = move.GetValue();
-    float rotation_in_raw = angle.GetValue().angle;
-    float angle_power = angle.GetValue().magnitude;
-
-    // Rotation PID
-    float rotation_in = rot_in_normalizer.Update(rotation_in_raw, angle_power);
-    float rotation_fb =
-        self_rot_y_normalizer.Update(gyro->GetHorizontalOrientation());
-    float rotation = rotation_direct_mode_enabled.GetValue()
-                         ? rotation_in
-                         : angle_pid.Update(rotation_in, rotation_fb, dt);
-
-    for (auto& motor : motors) {
-      motor.SetDrivePower(velocity, rotation);
-    }
+    rot_in_normalizer.Update();
+    self_rot_y_normalizer.Update();
+    angle.Update(dt);
   }
 };
 }  // namespace swerve

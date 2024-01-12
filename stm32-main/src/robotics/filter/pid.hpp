@@ -1,33 +1,42 @@
 #pragma once
 
 #include <memory>
-#include "../input/input.hpp"
+#include "../node/node.hpp"
 #include "../types/pid_gains.hpp"
 
 namespace robotics::filter {
 
 template <typename T>
-class PID : public input::Input<PIDGains> {
+class PID {
  private:
   T integral_;
   T prev_error_;
 
-  input::IInputController<PIDGains> *controller_ = nullptr;
+ public:
+  Node<PIDGains> gains;
+
+  Node<T> fb_;
+  Node<T> goal_;
+  Node<T> output_;
 
  public:
   PID(T kP = 0, T kI = 0, T kD = 0) : integral_(0), prev_error_(0) {
-    this->controller_ = this->GetController();
-    this->controller_->SetValue({kP, kI, kD});
+    gains.SetValue(PIDGains(kP, kI, kD));
   }
 
-  T Update(T target, T feedback, T dt) {
-    PIDGains value = controller_->GetValue();
+  void Update(T dt) {
+    PIDGains value = gains.GetValue();
+
+    T target = goal_.GetValue();
+    T feedback = fb_.GetValue();
 
     T error = target - feedback;
     integral_ += error * dt;
     T derivative = (error - prev_error_) / dt;
     prev_error_ = error;
-    return value.p * error + value.i * integral_ + value.d * derivative;
+
+    T output = value.p * error + value.i * integral_ + value.d * derivative;
+    output_.SetValue(output);
   }
 };
 }  // namespace robotics::filter

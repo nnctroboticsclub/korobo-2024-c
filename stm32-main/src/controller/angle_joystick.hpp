@@ -13,8 +13,12 @@ struct AngleJoystick2D : public ControllerBase<robotics::AngleStick2D> {
   }
 
   void Parse(RawPacket const& packet) override {
+    robotics::AngleStick2D value;
+
     value.magnitude = packet[0];
     value.angle = packet[1];
+
+    this->SetValue(value);
   }
 };
 

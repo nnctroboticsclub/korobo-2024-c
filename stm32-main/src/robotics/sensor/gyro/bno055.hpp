@@ -39,11 +39,7 @@ class BNO055 : public Base {
       bno055_.get_angles();
       bno055_.get_lia();
 
-      float yaw = bno055_.euler.yaw;
-      float pitch = bno055_.euler.pitch;
-      float roll = bno055_.euler.roll;
-
-      horizontal_orientation_ = yaw;
+      horizontal_orientation_ = bno055_.euler.yaw;
     }
   }
 

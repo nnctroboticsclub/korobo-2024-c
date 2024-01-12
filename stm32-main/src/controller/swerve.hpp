@@ -11,13 +11,13 @@
 namespace controller::swerve {
 struct SwerveController {
   struct Config {
-    int joystick_id = 0;
-    int angle_joystick_id = 1;
-    int rotation_pid_enabled_id = 1;
-    int motor_0_pid_id = 0;
-    int motor_1_pid_id = 1;
-    int motor_2_pid_id = 2;
-    int angle_pid_id = 3;
+    int joystick_id;
+    int angle_joystick_id;
+    int rotation_pid_enabled_id;
+    int motor_0_pid_id;
+    int motor_1_pid_id;
+    int motor_2_pid_id;
+    int angle_pid_id;
   };
 
   JoyStick move;
@@ -28,7 +28,16 @@ struct SwerveController {
   PID motor_2_pid;
   PID angle_pid;
 
-  SwerveController(Config const& config = {})
+  SwerveController(Config const& config =
+                       Config{
+                           .joystick_id = 0,
+                           .angle_joystick_id = 1,
+                           .rotation_pid_enabled_id = 1,
+                           .motor_0_pid_id = 0,
+                           .motor_1_pid_id = 1,
+                           .motor_2_pid_id = 2,
+                           .angle_pid_id = 3,
+                       })
       : move(config.joystick_id),
         angle(config.angle_joystick_id),
         rotation_pid_enabled(config.rotation_pid_enabled_id),
@@ -37,22 +46,14 @@ struct SwerveController {
         motor_2_pid(config.motor_2_pid_id),
         angle_pid(config.angle_pid_id) {}
 
+  SwerveController(SwerveController& other) = delete;
+  SwerveController operator=(SwerveController& other) = delete;
+
   bool Parse(RawPacket const& packet) {
     return move.Pass(packet) || angle.Pass(packet) ||
            rotation_pid_enabled.Pass(packet) || motor_0_pid.Pass(packet) ||
            motor_1_pid.Pass(packet) || motor_2_pid.Pass(packet) ||
            angle_pid.Pass(packet);
-  }
-
-  void Connect(robotics::component::Swerve& swerve) {
-    move.Connect(swerve.move.GetController());
-    angle.Connect(swerve.angle.GetController());
-    rotation_pid_enabled.Connect(
-        swerve.rotation_direct_mode_enabled.GetController());
-    motor_0_pid.Connect(swerve.motors[0].GetAnglePIDController());
-    motor_1_pid.Connect(swerve.motors[1].GetAnglePIDController());
-    motor_2_pid.Connect(swerve.motors[2].GetAnglePIDController());
-    angle_pid.Connect(swerve.angle_pid.GetController());
   }
 };
 

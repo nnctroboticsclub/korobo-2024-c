@@ -1,8 +1,7 @@
 #pragma once
 
 #include "pid.hpp"
-#include "../input/input.hpp"
-#include "../output/output.hpp"
+#include "../node/node.hpp"
 
 namespace robotics::filter {
 template <typename T>
@@ -10,24 +9,18 @@ class AngledMotor {
  public:
   filter::PID<float> pid;
 
-  input::Input<float> feedback;
-  input::Input<float> goal;
-  output::Output<float> output;
+  Node<float> feedback;
+  Node<float> goal;
+  Node<float> output;
 
  public:
-  AngledMotor() {}
+  AngledMotor() : pid(0, 0, 0), feedback(0), goal(0), output(0) {
+    feedback.Link(pid.fb_);
+    goal.Link(pid.goal_);
 
-  input::IInputController<PIDGains>* GetPIDController() {
-    return angle_.GetController();
+    pid.output_.Link(output);
   }
 
-  void Update(float dt) {
-    float angle = angle_.GetValue();
-    float goal = goal_.GetValue();
-    float feedback = feedback_.GetValue();
-
-    float power = pid.Update(goal, feedback, dt);
-    output.SetOutputValue(power);
-  }
+  void Update(float dt) { float power = pid.Update(dt); }
 };
 }  // namespace robotics::filter

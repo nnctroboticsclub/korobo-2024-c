@@ -1,23 +1,20 @@
 #pragma once
 
 #include "packet.hpp"
-#include "../robotics/input/input.hpp"
+#include "../robotics/node/node.hpp"
 
 namespace controller {
 
 template <typename T>
-struct ControllerBase {
+struct ControllerBase : public robotics::Node<T> {
  public:
   virtual bool Filter(RawPacket const &packet) = 0;
-
   virtual void Parse(RawPacket const &packet) = 0;
 
  public:
   int assigned_id_;
-  T value;
-  robotics::input::IInputController<T> *controller = nullptr;
 
-  ControllerBase(int id) : assigned_id_(id), value() {}
+  ControllerBase(int id) : assigned_id_(id) {}
 
   bool Pass(RawPacket const &packet) {
     if (!this->Filter(packet)) {
@@ -26,15 +23,7 @@ struct ControllerBase {
 
     this->Parse(packet);
 
-    if (controller != nullptr) {
-      controller->SetValue(value);
-    }
-
     return true;
-  }
-
-  void Connect(robotics::input::IInputController<T> *controller) {
-    this->controller = controller;
   }
 };
 

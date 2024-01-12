@@ -3,11 +3,11 @@
 #include <mbed.h>
 #include "motor.hpp"
 
-namespace robotics::output {
+namespace robotics::node {
 class BLDC : public Motor<float> {
-  int min_pulsewidth_, max_pulsewidth_;
-
+  bool initialized = false;
   PwmOut pwmout_;
+  int min_pulsewidth_, max_pulsewidth_;
 
   void SetSpeed(float speed) override {
     if (speed < 0) {
@@ -24,8 +24,19 @@ class BLDC : public Motor<float> {
       : pwmout_(pin),
         min_pulsewidth_(min_pulsewidth),
         max_pulsewidth_(max_pulsewidth) {
-    pwmout_.period_ms(20);
+    pwmout_.period_us(2000);
     pwmout_.pulsewidth_us(0);
   }
+
+  void Init() {
+    if (initialized) return;
+    initialized = true;
+
+    pwmout_.pulsewidth_us(max_pulsewidth_);
+    ThisThread::sleep_for(1s);
+
+    pwmout_.pulsewidth_us(min_pulsewidth_);
+    ThisThread::sleep_for(1s);
+  }
 };
-}  // namespace robotics::output
+}  // namespace robotics::node
