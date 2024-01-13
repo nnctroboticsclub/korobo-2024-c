@@ -19,6 +19,7 @@
 |  0x70 | 0x7x |    CAN Error | XX XX      | TX, RX Errors           |
 |  0x80 | 0x80 |         ping |            | ping to all device      |
 |  0x81 | 0x8F |         pong |            | pong from device        |
+|  0x90 | 0x9x |       Status | SS ?? ?? ??| Status Byte(s?)         |
 
 ## データ型
 
