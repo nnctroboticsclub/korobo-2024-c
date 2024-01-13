@@ -1,8 +1,7 @@
 #pragma once
 
+#include "../../node/node.hpp"
+
 namespace robotics::sensor::gyro {
-class Base {
- public:
-  virtual float GetHorizontalOrientation() = 0;
-};
-}  // namespace robotics::sensor
+class Base : public Node<float> {};
+}  // namespace robotics::sensor::gyro

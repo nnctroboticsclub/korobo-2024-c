@@ -18,8 +18,6 @@ class BNO055 : public Base {
 
   Timer timer;
 
-  float horizontal_orientation_ = -1;
-
   void ThreadMain() {
     if (!bno055_.check()) {
       printf("BNO055 not detected\n");
@@ -37,29 +35,14 @@ class BNO055 : public Base {
     timer.start();
     while (true) {
       bno055_.get_angles();
-      bno055_.get_lia();
 
-      horizontal_orientation_ = bno055_.euler.yaw;
-    }
-  }
-
-  void Monitor() {
-    while (true) {
-      printf("Yaw: %+6.2f\n", horizontal_orientation_);
-      rtos::ThisThread::sleep_for(50ms);
+      this->SetValue(bno055_.euler.yaw);
     }
   }
 
  public:
   BNO055(PinName SDA, PinName SDL) : bno055_(SDA, SDL) {}
 
-  void Init(bool monitor = false) {
-    thread.start(callback(this, &BNO055::ThreadMain));
-    if (monitor) {
-      monitor_thread.start(callback(this, &BNO055::Monitor));
-    }
-  }
-
-  float GetHorizontalOrientation() { return horizontal_orientation_; }
+  void Init() { thread.start(callback(this, &BNO055::ThreadMain)); }
 };
 }  // namespace robotics::sensor::gyro
