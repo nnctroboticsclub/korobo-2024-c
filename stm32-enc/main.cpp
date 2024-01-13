@@ -17,13 +17,18 @@ class UpdateDetector {
  private:
   T value_;
   bool updated_;
+  bool invalidated_ = true;
 
  public:
   UpdateDetector() : value_(0), updated_(false) {}
   UpdateDetector(T const& value) : value_(value), updated_(false) {}
 
   bool Update(T const& value) {
-    if (value_ != value) {
+    if (invalidated_) {
+      invalidated_ = false;
+      value_ = value;
+      updated_ = true;
+    } else if (value != value_) {
       value_ = value;
       updated_ = true;
     } else {
@@ -85,7 +90,10 @@ class DistributedPseudoAbsEncoder {
     payload.push_back(value >> 8);
     payload.push_back(value & 0xFF);
 
-    attached_can_.can->Send(0x61, payload);
+    auto ret = attached_can_.can->Send(0x61, payload);
+    if (ret != 1) {
+      printf("DistributedPseudoAbsEncoder::Send_/CanSend() failed\n");
+    }
   }
 
  public:
