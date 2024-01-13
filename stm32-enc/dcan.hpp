@@ -63,6 +63,13 @@ class SimpleCAN {
 
 class DistributedCAN {
  public:
+  enum class Statuses {
+    kReady = 0x00,
+    kCANReady = 0x01,
+    kInitializingESC = 0x01,
+    kInitializingGyro = 0x02,
+  };
+
   struct EventCallback {
     uint8_t element_id;
     std::function<void(std::vector<uint8_t>)> cb;
@@ -106,6 +113,8 @@ class DistributedCAN {
     OnEvent(0x80, [this](std::vector<uint8_t> data) {
       can_.Send(0x81 + can_id, {});
     });
+
+    SetStatus(Statuses::kCANReady);
   }
 
   void OnEvent(uint8_t element_id,
@@ -117,5 +126,9 @@ class DistributedCAN {
 
   void Send(uint8_t element_id, std::vector<uint8_t> const &data) {
     can_.Send(element_id, data);
+  }
+
+  void SetStatus(Statuses status) {
+    Send(0x90, {static_cast<uint8_t>(status)});
   }
 };
