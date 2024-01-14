@@ -125,7 +125,7 @@ class DistributedCAN {
   }
 
   int Send(uint8_t element_id, std::vector<uint8_t> const &data) {
-    can_.Send(element_id, data);
+    return can_.Send(element_id, data);
   }
 
   void SetStatus(Statuses status) {
