@@ -21,6 +21,6 @@ class AngledMotor {
     pid.output_.Link(output);
   }
 
-  void Update(float dt) { float power = pid.Update(dt); }
+  void Update(float dt) { pid.Update(dt); }
 };
 }  // namespace robotics::filter
