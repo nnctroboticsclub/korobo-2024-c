@@ -6,23 +6,23 @@ dependencies:
       type: service
     version: 1.0.2-beta
   espressif/mdns:
-    component_hash: 810ec139689ae93bf42520d05de4855fbb68f7140ef67797d91d8d61829589cb
+    component_hash: 090826401d30f756037f91d91068f470ba8d0ef04fe507d3aa8761305cecd7ca
     source:
       service_url: https://api.components.espressif.com/
       type: service
-    version: 1.2.2
+    version: 1.2.3
   idf:
     component_hash: null
     source:
       type: idf
     version: 5.2.0
   nnctroboticsclub/libstm-ota:
-    component_hash: 031d5f2eff01bb164d78c7582c18e468d25435b3594be3be5f656f83e13fc3df
+    component_hash: c2bb7b56036e0fa0269677baa7b53e4bd475543d50c053007e10dd63cc2591b5
     source:
       git: ssh://git@github.com/nnctroboticsclub/libstm-ota.git
       path: .
       type: git
-    version: 67b55b229d32bdb5bc31010ff5e24dd8313e4ff5
+    version: 961edb45582281712fe393f5769e8e3603b6271f
   nnctroboticsclub/stream-base:
     component_hash: a855f54e26f7d503d858baff5c0a8ccc152a84225540a32c6b2c5793970ca2dc
     source:

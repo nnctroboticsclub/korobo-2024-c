@@ -25,6 +25,8 @@ class CANDriver {
  private:
   twai_handle_t twai_driver_;
   std::unordered_map<MessageID, std::vector<Callback>> callbacks_;
+  std::vector<Callback> rx_callbacks_;
+  std::vector<Callback> tx_callbacks_;
   bool bus_locked = false;
 
   static void AlertLoop(void* args) {
@@ -82,6 +84,10 @@ class CANDriver {
         for (auto& cb : self.callbacks_[msg.identifier]) {
           cb(msg.identifier, data);
         }
+
+        for (auto& cb : self.rx_callbacks_) {
+          cb(msg.identifier, data);
+        }
       }
     }
   }
@@ -91,7 +97,6 @@ class CANDriver {
 
   void Init(gpio_num_t tx, gpio_num_t rx) {
     static const char* TAG = "Init#CANDriver";
-
     twai_general_config_t general_config =
         TWAI_GENERAL_CONFIG_DEFAULT(tx, rx, twai_mode_t::TWAI_MODE_NORMAL);
     twai_timing_config_t timing_config = TWAI_TIMING_CONFIG_1MBITS();
@@ -136,6 +141,10 @@ class CANDriver {
     };
     std::copy(data.begin(), data.end(), msg.data);
 
+    for (auto& cb : tx_callbacks_) {
+      cb(id, data);
+    }
+
     auto status = twai_transmit_v2(twai_driver_, &msg, pdMS_TO_TICKS(1000));
     if (status != ESP_OK) {
       ESP_LOGE(TAG, "Failed to transmit TWAI message: %s",
@@ -151,6 +160,9 @@ class CANDriver {
     }
     callbacks_[id].emplace_back(cb);
   }
+
+  void OnRx(Callback cb) { rx_callbacks_.emplace_back(cb); }
+  void OnTx(Callback cb) { tx_callbacks_.emplace_back(cb); }
 };
 
 constexpr const uint8_t kDeviceId = 2;
@@ -191,6 +203,9 @@ class KoroboCANDriver {
   void OnMessage(uint32_t id, CANDriver::Callback cb) {
     can_.OnMessage(id, cb);
   }
+
+  void OnRx(CANDriver::Callback cb) { can_.OnRx(cb); }
+  void OnTx(CANDriver::Callback cb) { can_.OnTx(cb); }
 
   void SendControl(std::vector<uint8_t> const& data) { SendStd(0x40, data); }
 
@@ -372,10 +387,9 @@ class App {
       delete[] buf;
     }
 
-    ESP_LOGI(TAG, "Packet type: %d", ws_pkt.type);
     if (ws_pkt.type == httpd_ws_type_t::HTTPD_WS_TYPE_CLOSE) {
-      obj.Erase(req);
       ESP_LOGI(TAG, "Connection closed");
+      obj.Erase(req);
       return ESP_OK;
     }
     return ret;
@@ -423,13 +437,29 @@ class App {
 
     ESP_LOGI("Manager", "Init");
 
-    can_.OnPong([this](uint8_t device) {
-      ESP_LOGI("Manager", "Pong from %d", device);
-      this->SendCANtoRoboWs(0xff, {device});
+    can_.OnPong(
+        [this](uint8_t device) { this->SendCANtoRoboWs(0xff, {device}); });
+
+    can_.OnRx([this](uint32_t id, std::vector<uint8_t> const& data) {
+      printf("CAN: 0x%03lx: ", id);
+      for (auto& b : data) {
+        printf("%02x ", b);
+      }
+      printf("\n");
+    });
+
+    can_.OnTx([this](uint32_t id, std::vector<uint8_t> const& data) {
+      printf("CAN: 0x%03lx: ", id);
+      for (auto& b : data) {
+        printf("%02x ", b);
+      }
+      printf("\n");
     });
 
     can_.OnMessage(0xa0, [this](uint32_t id, std::vector<uint8_t> const& data) {
-      this->SendCANtoRoboWs(0xa0, data);
+      uint32_t msg_id = data[0];
+      std::vector<uint8_t> payload(data.begin() + 1, data.end());
+      this->SendCANtoRoboWs(msg_id, payload);
     });
 
     xTaskCreate(
@@ -437,7 +467,7 @@ class App {
           auto& app = *static_cast<App*>(args);
           while (1) {
             app.can_.Ping();
-            vTaskDelay(pdMS_TO_TICKS(1000));
+            vTaskDelay(pdMS_TO_TICKS(5000));
           }
         },
         "PingTask", 4096, this, 1, NULL);
