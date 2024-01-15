@@ -1,4 +1,6 @@
 #include <functional>
+#include <unordered_map>
+#include <vector>
 
 #include <stdio.h>
 
@@ -18,11 +20,11 @@ class CANDriver {
  public:
   using Callback =
       std::function<void(uint32_t id, std::vector<uint8_t> const& data)>;
-  using CallbackTag = uint32_t;
+  using MessageID = uint32_t;
 
  private:
   twai_handle_t twai_driver_;
-  std::vector<std::pair<CallbackTag, Callback>> callbacks_;
+  std::unordered_map<MessageID, std::vector<Callback>> callbacks_;
   bool bus_locked = false;
 
   static void AlertLoop(void* args) {
@@ -77,8 +79,8 @@ class CANDriver {
         std::vector<uint8_t> data(msg.data_length_code);
         std::copy(msg.data, msg.data + msg.data_length_code, data.begin());
 
-        for (auto& cb : self.callbacks_) {
-          cb.second(msg.identifier, data);
+        for (auto& cb : self.callbacks_[msg.identifier]) {
+          cb(msg.identifier, data);
         }
       }
     }
@@ -143,8 +145,11 @@ class CANDriver {
     return true;
   }
 
-  void AddRxCallback(CallbackTag tag, Callback cb) {
-    callbacks_.emplace_back(tag, cb);
+  void OnMessage(uint32_t id, Callback cb) {
+    if (callbacks_.find(id) == callbacks_.end()) {
+      callbacks_.emplace(id, std::vector<Callback>());
+    }
+    callbacks_[id].emplace_back(cb);
   }
 };
 
@@ -156,19 +161,7 @@ class KoroboCANDriver {
 
  private:
   CANDriver can_;
-
   std::vector<PongListener> pong_listeners_;
-
-  void HandleCanMessage(uint32_t id, std::vector<uint8_t> const& data) {
-    if (id == 0x80) {
-      can_.SendStd(0x81 + kDeviceId, {kDeviceId});
-    } else if (0x81 <= id && id <= 0x8F) {
-      const uint8_t device = id - 0x81;
-      for (auto& cb : pong_listeners_) {
-        cb(device);
-      }
-    }
-  }
 
  public:
   KoroboCANDriver() : can_() {}
@@ -176,23 +169,95 @@ class KoroboCANDriver {
   void Init(gpio_num_t tx, gpio_num_t rx) {
     can_.Init(tx, rx);
 
-    can_.AddRxCallback(0,
-                       [this](uint32_t id, std::vector<uint8_t> const& data) {
-                         this->HandleCanMessage(id, data);
-                       });
+    can_.OnMessage(0x80, [this](uint32_t id, std::vector<uint8_t> const& data) {
+      can_.SendStd(0x81 + kDeviceId, {kDeviceId});
+    });
+
+    for (uint8_t device = 0; device < 15; device++) {
+      can_.OnMessage(
+          0x81 + device,
+          [this, device](uint32_t id, std::vector<uint8_t> const& data) {
+            for (auto& cb : pong_listeners_) {
+              cb(device);
+            }
+          });
+    }
   }
 
-  void SendControl(std::vector<uint8_t> const& data) {
-    can_.SendStd(0x40, data);
+  void SendStd(uint32_t id, std::vector<uint8_t> const& data) {
+    can_.SendStd(id, data);
   }
 
-  void Ping() { can_.SendStd(0x80, {0x00}); }
+  void OnMessage(uint32_t id, CANDriver::Callback cb) {
+    can_.OnMessage(id, cb);
+  }
+
+  void SendControl(std::vector<uint8_t> const& data) { SendStd(0x40, data); }
+
+  void Ping() { SendStd(0x80, {}); }
 
   void OnPong(PongListener cb) { pong_listeners_.emplace_back(cb); }
 };
 
+class WebSocketClient {
+  httpd_handle_t hd;
+  int fd;
+
+ public:
+  WebSocketClient(httpd_handle_t hd, int fd) : hd(hd), fd(fd) {}
+
+  bool operator==(const WebSocketClient& rhs) const { return fd == rhs.fd; }
+  bool operator==(httpd_req_t* rhs) const {
+    return fd == httpd_req_to_sockfd(rhs);
+  }
+
+  static WebSocketClient FromRequest(httpd_req_t* req) {
+    auto hd = req->handle;
+    auto fd = httpd_req_to_sockfd(req);
+    return WebSocketClient(hd, fd);
+  }
+
+  esp_err_t SendFrame(httpd_ws_frame_t* frame) {
+    return httpd_ws_send_frame_async(hd, fd, frame);
+  }
+};
+
+class WebSocketClients {
+  using Clients = std::vector<WebSocketClient>;
+  Clients clients;
+
+ public:
+  void emplace_back(WebSocketClient client) { clients.emplace_back(client); }
+
+  Clients::iterator begin() { return clients.begin(); }
+  Clients::iterator end() { return clients.end(); }
+
+  Clients::const_iterator begin() const { return clients.begin(); }
+  Clients::const_iterator end() const { return clients.end(); }
+
+  Clients::const_iterator cbegin() const { return clients.cbegin(); }
+  Clients::const_iterator cend() const { return clients.cend(); }
+
+  void Erase(httpd_req_t* req) {
+    ESP_LOGI("WebSocketClients", "Erasing %d", httpd_req_to_sockfd(req));
+    clients.erase(std::remove_if(clients.begin(), clients.end(),
+                                 [req](const WebSocketClient& client) {
+                                   return client == req;
+                                 }),
+                  clients.end());
+  }
+
+  void Erase(Clients::iterator it) { clients.erase(it); }
+
+  void Add(httpd_req_t* req) {
+    ESP_LOGI("WebSocketClients", "Adding %d", httpd_req_to_sockfd(req));
+    clients.emplace_back(WebSocketClient::FromRequest(req));
+  }
+};
+
 class App {
   KoroboCANDriver can_;
+  WebSocketClients robo_clients;
 
   stm32::ota::InitConfig& GetInitConfig() {
     using stm32::ota::InitConfig;
@@ -201,25 +266,25 @@ class App {
         .uarts = {InitConfig::Uart{
             .port = 1,
             .baud_rate = 9600,
-            .tx = GPIO_NUM_17,
-            .rx = GPIO_NUM_16,
+            .tx = 27,
+            .rx = 17,
             .parity = UART_PARITY_DISABLE,
         }},
         .spi_buses = {InitConfig::SPIBus{
             .port = 2,
-            .miso = GPIO_NUM_19,
-            .mosi = GPIO_NUM_23,
-            .sclk = GPIO_NUM_18,
+            .miso = GPIO_NUM_12,
+            .mosi = GPIO_NUM_13,
+            .sclk = GPIO_NUM_14,
         }},
         .stm32bls = {InitConfig::STM32BL{
             .id = 1,
             .spi_port_id = 2,
-            .cs = GPIO_NUM_5,
+            .cs = GPIO_NUM_16,
         }},
         .stm32s = {InitConfig::STM32{
             .id = 2,
-            .reset = GPIO_NUM_22,
-            .boot0 = GPIO_NUM_21,
+            .reset = GPIO_NUM_17,
+            .boot0 = GPIO_NUM_33,
             .bl_id = 1,
         }},
         .serial_proxies = {InitConfig::SerialProxy{.id = 1, .uart_port_id = 1}},
@@ -270,8 +335,11 @@ class App {
     httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
 
     auto& app = *static_cast<App*>(req->user_ctx);
+    auto& obj = app.robo_clients;
 
     if (req->method == HTTP_GET) {
+      ESP_LOGI(TAG, "Handshake done, the new connection was opened");
+      obj.Add(req);
       return ESP_OK;
     }
 
@@ -280,20 +348,35 @@ class App {
 
     esp_err_t ret = httpd_ws_recv_frame(req, &ws_pkt, 0);
     if (ret != ESP_OK) {
+      ESP_LOGE(TAG, "httpd_ws_recv_frame failed to get frame len with %d", ret);
       return ret;
     }
 
     if (ws_pkt.len) {
-      auto buf = std::vector<uint8_t>(ws_pkt.len + 1, 0);
-      ws_pkt.payload = buf.data();
+      uint8_t* buf = new uint8_t[ws_pkt.len + 1];
+      if (buf == NULL) {
+        ESP_LOGE(TAG, "Failed to calloc memory for buf");
+        return ESP_ERR_NO_MEM;
+      }
 
+      ws_pkt.payload = buf;
       ret = httpd_ws_recv_frame(req, &ws_pkt, ws_pkt.len);
       if (ret != ESP_OK) {
         ESP_LOGE(TAG, "httpd_ws_recv_frame failed with %d", ret);
+        delete[] buf;
         return ret;
       }
 
-      app.can_.SendControl(buf);
+      app.can_.SendControl(std::vector<uint8_t>(buf, buf + ws_pkt.len));
+
+      delete[] buf;
+    }
+
+    ESP_LOGI(TAG, "Packet type: %d", ws_pkt.type);
+    if (ws_pkt.type == httpd_ws_type_t::HTTPD_WS_TYPE_CLOSE) {
+      obj.Erase(req);
+      ESP_LOGI(TAG, "Connection closed");
+      return ESP_OK;
     }
     return ret;
   }
@@ -318,6 +401,20 @@ class App {
     return ota_server;
   }
 
+  void SendCANtoRoboWs(uint16_t id, std::vector<uint8_t> const& data) {
+    std::vector<uint8_t> payload = data;
+    payload.insert(payload.begin(), id);
+
+    httpd_ws_frame_t frame = {
+        .type = HTTPD_WS_TYPE_BINARY,
+        .payload = payload.data(),
+        .len = payload.size(),
+    };
+    for (auto& client : this->robo_clients) {
+      client.SendFrame(&frame);
+    }
+  }
+
  public:
   App() : can_() {}
 
@@ -326,8 +423,14 @@ class App {
 
     ESP_LOGI("Manager", "Init");
 
-    can_.OnPong(
-        [](uint8_t device) { ESP_LOGI("Manager", "Pong from %d", device); });
+    can_.OnPong([this](uint8_t device) {
+      ESP_LOGI("Manager", "Pong from %d", device);
+      this->SendCANtoRoboWs(0xff, {device});
+    });
+
+    can_.OnMessage(0xa0, [this](uint32_t id, std::vector<uint8_t> const& data) {
+      this->SendCANtoRoboWs(0xa0, data);
+    });
 
     xTaskCreate(
         [](void* args) {
