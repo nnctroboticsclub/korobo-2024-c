@@ -163,7 +163,7 @@ int main(int argc, char const *argv[]) {
           {
               .swerve_pin_m0 = PA_0,
               .swerve_pin_m1 = PA_1,
-              .swerve_pin_m2 = PA_2,
+              .swerve_pin_m2 = PB_0,
           },
       .swerve_config = swerve_config,
       .controller_ids = {.swerve =
