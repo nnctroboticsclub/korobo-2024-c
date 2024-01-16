@@ -1,6 +1,7 @@
 #include <functional>
 #include <unordered_map>
 #include <vector>
+#include <queue>
 
 #include <stdio.h>
 
@@ -27,6 +28,10 @@ class CANDriver {
   std::unordered_map<MessageID, std::vector<Callback>> callbacks_;
   std::vector<Callback> rx_callbacks_;
   std::vector<Callback> tx_callbacks_;
+
+  int bits_per_sample_ = 0;
+  std::queue<int> bits_per_samples_ = std::queue<int>();
+  float bus_load_ = 0.0f;
   bool bus_locked = false;
 
   static void AlertLoop(void* args) {
@@ -92,6 +97,27 @@ class CANDriver {
     }
   }
 
+  void AddBitSample(int bits) { bits_per_sample_ += bits; }
+
+  static void BitSampleThread(void* args) {
+    auto self = static_cast<CANDriver*>(args);
+    while (1) {
+      vTaskDelay(pdMS_TO_TICKS(100));
+      self->bits_per_samples_.push(self->bits_per_sample_);
+      self->bits_per_sample_ = 0;
+
+      if (self->bits_per_samples_.size() > 10) {
+        self->bits_per_samples_.pop();
+      }
+
+      int sum = 0;
+      for (int i = 0; i < self->bits_per_samples_.size(); i++) {
+        sum += self->bits_per_samples_.front();
+      }
+      self->bus_load_ = sum / 1000.0f / (1000 * 1000 * 1000);
+    }
+  }
+
  public:
   CANDriver() : twai_driver_(nullptr), callbacks_(), bus_locked(false) {}
 
@@ -122,7 +148,18 @@ class CANDriver {
     }
     ESP_LOGI(TAG, "start TWAI driver sucessful");
 
+    OnRx([this](uint32_t id, std::vector<uint8_t> const& data) {
+      AddBitSample(1 + 11 + 1 + 1 + 1 + 4 + 8 * data.size() + 15 + 1 + 1 + 1 +
+                   7);
+    });
+    OnTx([this](uint32_t id, std::vector<uint8_t> const& data) {
+      AddBitSample(1 + 11 + 1 + 1 + 1 + 4 + 8 * data.size() + 15 + 1 + 1 + 1 +
+                   7);
+    });
+
     xTaskCreate(CANDriver::AlertLoop, "AlertLoop#CAN", 4096, this, 1, NULL);
+    xTaskCreate(CANDriver::BitSampleThread, "BitSampleThread#CAN", 4096, this,
+                1, NULL);
   }
 
   bool SendStd(uint32_t id, std::vector<uint8_t> const& data) {
@@ -163,6 +200,8 @@ class CANDriver {
 
   void OnRx(Callback cb) { rx_callbacks_.emplace_back(cb); }
   void OnTx(Callback cb) { tx_callbacks_.emplace_back(cb); }
+
+  float GetBusLoad() { return bus_load_; }
 };
 
 constexpr const uint8_t kDeviceId = 2;
@@ -206,6 +245,8 @@ class KoroboCANDriver {
 
   void OnRx(CANDriver::Callback cb) { can_.OnRx(cb); }
   void OnTx(CANDriver::Callback cb) { can_.OnTx(cb); }
+
+  float GetBusLoad() { return can_.GetBusLoad(); }
 
   void SendControl(std::vector<uint8_t> const& data) { SendStd(0x40, data); }
 
@@ -440,22 +481,6 @@ class App {
     can_.OnPong(
         [this](uint8_t device) { this->SendCANtoRoboWs(0xff, {device}); });
 
-    can_.OnRx([this](uint32_t id, std::vector<uint8_t> const& data) {
-      printf("CAN: 0x%03lx: ", id);
-      for (auto& b : data) {
-        printf("%02x ", b);
-      }
-      printf("\n");
-    });
-
-    can_.OnTx([this](uint32_t id, std::vector<uint8_t> const& data) {
-      printf("CAN: 0x%03lx: ", id);
-      for (auto& b : data) {
-        printf("%02x ", b);
-      }
-      printf("\n");
-    });
-
     can_.OnMessage(0xa0, [this](uint32_t id, std::vector<uint8_t> const& data) {
       uint32_t msg_id = data[0];
       std::vector<uint8_t> payload(data.begin() + 1, data.end());
@@ -471,6 +496,23 @@ class App {
           }
         },
         "PingTask", 4096, this, 1, NULL);
+
+    xTaskCreate(
+        [](void* args) {
+          auto& app = *static_cast<App*>(args);
+          while (1) {
+            auto load = app.can_.GetBusLoad();
+            auto load_int = static_cast<uint32_t>(load * 0xffffffff);
+            app.SendCANtoRoboWs(0xfe, {
+                                          static_cast<uint8_t>(load_int >> 24),
+                                          static_cast<uint8_t>(load_int >> 16),
+                                          static_cast<uint8_t>(load_int >> 8),
+                                          static_cast<uint8_t>(load_int),
+                                      });
+            vTaskDelay(pdMS_TO_TICKS(200));
+          }
+        },
+        "LoadReporting", 4096, this, 1, NULL);
 
     stm32::ota::OTAServer ota_server = this->StartOTAServer();
 
