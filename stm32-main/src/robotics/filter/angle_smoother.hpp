@@ -10,24 +10,20 @@ class AngleNormalizer {
   Node<T> input;
   Node<T> output;
 
-  void Update(float power = 1) {
-    T input_value = input.GetValue();
+  AngleNormalizer() {
+    input.SetChangeCallback([this](T input) {
+      T delta_rot_y_deg = input - prev_input;
+      prev_input = input;
 
-    T delta_rot_y_deg = input_value - prev_input;
-    prev_input = input_value;
+      if (delta_rot_y_deg > 180)
+        delta_rot_y_deg -= 360;
+      else if (delta_rot_y_deg < -180)
+        delta_rot_y_deg += 360;
 
-    if (delta_rot_y_deg > 180)
-      delta_rot_y_deg -= 360;
-    else if (delta_rot_y_deg < -180)
-      delta_rot_y_deg += 360;
+      value += delta_rot_y_deg;
 
-    value += delta_rot_y_deg * power;
-
-    if (power == 0) {
-      value = 0;
-    }
-
-    output.SetValue(value);
+      output.SetValue(value);
+    });
   }
 };
 }  // namespace robotics::filter
