@@ -21,6 +21,10 @@ class Node {
   Node<T>& operator=(Node<T>&) = delete;
 
   void SetValue(T value) {
+    if (value_ == value) {
+      return;
+    }
+
     value_ = value;
 
     for (auto& callback : callbacks_) {
