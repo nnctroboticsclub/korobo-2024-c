@@ -49,6 +49,15 @@ class Vector {
     return Vector(data);
   }
 
+  bool operator==(Vector const& rhs) const {
+    for (int i = 0; i < N; i++) {
+      if (data_[i] != rhs.data_[i]) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   T& operator[](int i) { return data_[i]; }
 
   T const& operator[](int i) const { return data_[i]; }
