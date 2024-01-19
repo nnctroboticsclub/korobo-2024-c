@@ -9,6 +9,7 @@
 #include "../../filter/angled_motor.hpp"
 #include "../../sensor/gyro/base.hpp"
 #include "../../node/node.hpp"
+#include "../../filter/muxer.hpp"
 #include "../../types/angle_joystick_2d.hpp"
 #include "../../types/joystick_2d.hpp"
 #include "../../types/vector.hpp"
@@ -33,7 +34,8 @@ class Swerve {
  private:
   filter::AngleNormalizer<float> rot_in_normalizer;  // ctrl angle normalizer
   filter::AngleNormalizer<float>
-      self_rot_y_normalizer;  // robot angle normalizer
+      self_rot_y_normalizer;   // robot angle normalizer
+  filter::Muxer<float> muxer;  // muxer for angle pid switch
 
  public:
   Swerve(Config& config)
@@ -50,19 +52,32 @@ class Swerve {
     angle_ctrl.Link(rot_in_normalizer.input);
     rot_in_normalizer.output.Link(angle.goal_);
 
-    for (size_t i = 0; i < 3; i++) {
+    muxer.AddInput(angle_ctrl);
+    muxer.AddInput(angle.output_);
+
+    for (auto& motor : motors) {
       // move_ctrl >> motor
-      move_ctrl.Link(motors[i]->velocity);
+      move_ctrl.Link(motor->velocity);
 
       // anglePID >> motor
-      angle.output_.Link(motors[i]->rotation);
+      angle_ctrl.Link(motor->rotation);
     }
   }
 
   void Update(float dt) {
-    rot_in_normalizer.Update();
-    self_rot_y_normalizer.Update();
     angle.Update(dt);
+
+    for (auto motor : motors) {
+      motor->steer_.Update(dt);
+    }
+  }
+
+  void SetAnglePID(bool enabled) {
+    if (enabled) {
+      muxer.Select(0);
+    } else {
+      muxer.Select(1);
+    }
   }
 };
 }  // namespace swerve

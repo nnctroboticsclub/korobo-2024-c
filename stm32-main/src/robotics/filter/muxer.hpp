@@ -1,32 +1,33 @@
 #pragma once
 
-#include <array>
+#include <vector>
 
 namespace robotics::filter {
-template <typename T, int N>
+template <typename T>
 struct Muxer {
-  std::array<Node<T>, N> inputs_;
+  std::vector<Node<T>*> inputs_;
   Node<T> output_;
-  int selected_ = 0;
+  int selected_;
 
-  Muxer() {
-    int i = 0;
-    for (auto& input : inputs_) {
-      input.SetChangeCallback([this, i](T value) {
-        if (i == selected_) {
-          output_.SetValue(value);
-        }
-      });
-      i++;
-    }
-  }
+  Muxer() : selected_(0) {}
 
   void Select(int index) {
-    if (index < 0 || index >= N) {
+    if (index < 0 || index >= inputs_.size()) {
       return;
     }
+    printf("muxer select %d\n", index);
     selected_ = index;
-    output_.SetValue(inputs_[index].GetValue());
+    output_.SetValue(inputs_[index]->GetValue());
+  }
+
+  void AddInput(Node<T>& input) {
+    int i = inputs_.size();
+    inputs_.push_back(&input);
+    input.SetChangeCallback([this, i](T value) {
+      if (selected_ < i) {
+        output_.SetValue(value);
+      }
+    });
   }
 };
 }  // namespace robotics::filter
