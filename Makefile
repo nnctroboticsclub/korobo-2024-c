@@ -64,7 +64,8 @@ cs1:
 
 fs1:
 	cd /workspaces/korobo2023/stm32-main && \
-		sudo cp BUILD/*/GCC_ARM/stm32-main.bin $(MNT1)/binary.bin
+		sudo cp BUILD/*/GCC_ARM/stm32-main.bin $(MNT1)/binary.bin && \
+		sudo sync $(MNT1)
 
 ms1:
 	cd /workspaces/korobo2023/stm32-main && \
@@ -79,7 +80,8 @@ cs2:
 
 fs2:
 	cd /workspaces/korobo2023/stm32-enc && \
-		sudo cp BUILD/*/GCC_ARM/stm32-enc.bin $(MNT2)/binary.bin
+		sudo cp BUILD/*/GCC_ARM/stm32-enc.bin $(MNT2)/binary.bin && \
+		sudo sync $(MNT1)
 
 ms2:
 	cd /workspaces/korobo2023/stm32-enc && \
@@ -90,11 +92,11 @@ us2: cs2 fs2
 
 lu:
 	@{ for D in /sys/bus/usb/devices/*; do \
-		printf "%s:%s on %s-%s  ::  %40s :: \"%s\" by \"%s\"\n" \
+		printf "%s:%s on %s-%s (%32s) :: %s\n" \
 			$$(cat $$D/idVendor) $$(cat $$D/idProduct) \
 			$$(cat $$D/busnum) $$(cat $$D/devpath) \
 			$$(cat $$D/serial) \
-			"$$(cat $$D/product)" "$$(cat $$D/manufacturer)"; \
+			"$$(cat $$D/product)"; \
   done; } 2>/dev/null | grep -v "^: on -"
 
 ws:
