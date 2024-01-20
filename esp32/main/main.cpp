@@ -256,15 +256,18 @@ class KoroboCANDriver {
 };
 
 class WebSocketClient {
+  SemaphoreHandle_t robo_send_mutex_ = xSemaphoreCreateMutex();
   httpd_handle_t hd;
   int fd;
 
  public:
   WebSocketClient(httpd_handle_t hd, int fd) : hd(hd), fd(fd) {}
 
-  bool operator==(const WebSocketClient& rhs) const { return fd == rhs.fd; }
+  bool operator==(const WebSocketClient& rhs) const {
+    return fd == rhs.fd && hd == rhs.hd;
+  }
   bool operator==(httpd_req_t* rhs) const {
-    return fd == httpd_req_to_sockfd(rhs);
+    return fd == httpd_req_to_sockfd(rhs) && hd == rhs->handle;
   }
 
   static WebSocketClient FromRequest(httpd_req_t* req) {
@@ -274,8 +277,13 @@ class WebSocketClient {
   }
 
   esp_err_t SendFrame(httpd_ws_frame_t* frame) {
-    return httpd_ws_send_frame_async(hd, fd, frame);
+    xSemaphoreTake(robo_send_mutex_, portMAX_DELAY);
+    auto ret = httpd_ws_send_frame_async(hd, fd, frame);
+    xSemaphoreGive(robo_send_mutex_);
+    return ret;
   }
+
+  int GetFD() const { return fd; }
 };
 
 class WebSocketClients {
@@ -283,7 +291,13 @@ class WebSocketClients {
   Clients clients;
 
  public:
-  void emplace_back(WebSocketClient client) { clients.emplace_back(client); }
+  void emplace_back(WebSocketClient client) {
+    if (std::find(clients.begin(), clients.end(), client) != clients.end()) {
+      ESP_LOGI("WebSocketClients", "Client %d already exists", client.GetFD());
+      return;
+    }
+    clients.emplace_back(client);
+  }
 
   Clients::iterator begin() { return clients.begin(); }
   Clients::iterator end() { return clients.end(); }
@@ -295,7 +309,8 @@ class WebSocketClients {
   Clients::const_iterator cend() const { return clients.cend(); }
 
   void Erase(httpd_req_t* req) {
-    ESP_LOGI("WebSocketClients", "Erasing %d", httpd_req_to_sockfd(req));
+    ESP_LOGI("WebSocketClients", "Erasing %d/%p", httpd_req_to_sockfd(req),
+             req->handle);
     clients.erase(std::remove_if(clients.begin(), clients.end(),
                                  [req](const WebSocketClient& client) {
                                    return client == req;
@@ -306,7 +321,8 @@ class WebSocketClients {
   void Erase(Clients::iterator it) { clients.erase(it); }
 
   void Add(httpd_req_t* req) {
-    ESP_LOGI("WebSocketClients", "Adding %d", httpd_req_to_sockfd(req));
+    ESP_LOGI("WebSocketClients", "Adding %d/%p", httpd_req_to_sockfd(req),
+             req->handle);
     clients.emplace_back(WebSocketClient::FromRequest(req));
   }
 };
@@ -408,32 +424,41 @@ class App {
       return ret;
     }
 
-    if (ws_pkt.len) {
-      uint8_t* buf = new uint8_t[ws_pkt.len + 1];
-      if (buf == NULL) {
-        ESP_LOGE(TAG, "Failed to calloc memory for buf");
-        return ESP_ERR_NO_MEM;
-      }
-
-      ws_pkt.payload = buf;
-      ret = httpd_ws_recv_frame(req, &ws_pkt, ws_pkt.len);
-      if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "httpd_ws_recv_frame failed with %d", ret);
-        delete[] buf;
-        return ret;
-      }
-
-      app.can_.SendControl(std::vector<uint8_t>(buf, buf + ws_pkt.len));
-
-      delete[] buf;
-    }
-
     if (ws_pkt.type == httpd_ws_type_t::HTTPD_WS_TYPE_CLOSE) {
       ESP_LOGI(TAG, "Connection closed");
       obj.Erase(req);
       return ESP_OK;
     }
-    return ret;
+    if (ws_pkt.type == httpd_ws_type_t::HTTPD_WS_TYPE_PING) {
+      ESP_LOGI(TAG, "Received ping");
+      ws_pkt.type = httpd_ws_type_t::HTTPD_WS_TYPE_PONG;
+      return ESP_OK;
+    }
+
+    if (ws_pkt.len == 0) {
+      ESP_LOGI(TAG, "Received empty frame");
+      return ESP_OK;
+    }
+
+    uint8_t* buf = new uint8_t[ws_pkt.len + 1];
+    if (buf == NULL) {
+      ESP_LOGE(TAG, "Failed to calloc memory for buf");
+      return ESP_ERR_NO_MEM;
+    }
+
+    ws_pkt.payload = buf;
+    ret = httpd_ws_recv_frame(req, &ws_pkt, ws_pkt.len);
+    if (ret != ESP_OK) {
+      ESP_LOGE(TAG, "httpd_ws_recv_frame failed with %d", ret);
+      delete[] buf;
+      return ret;
+    }
+
+    app.can_.SendControl(std::vector<uint8_t>(buf, buf + ws_pkt.len));
+
+    delete[] buf;
+
+    return ESP_OK;
   }
 
   stm32::ota::OTAServer StartOTAServer() {
@@ -465,6 +490,7 @@ class App {
         .payload = payload.data(),
         .len = payload.size(),
     };
+
     for (auto& client : this->robo_clients) {
       client.SendFrame(&frame);
     }
