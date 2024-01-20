@@ -4,17 +4,22 @@
 #include "rtos.h"
 
 #include <unordered_map>
+#include <functional>
 #include <vector>
 
 class SimpleCAN {
  public:
-  using RxCallback = std::function<void(SimpleCAN &, CANMessage const &)>;
+  using RxCallback =
+      std::function<void(std::uint32_t, std::vector<uint8_t> const &)>;
+  using TxCallback =
+      std::function<void(std::uint32_t, std::vector<uint8_t> const &)>;
 
  private:
   CAN can_;
   int freqency_ = 50E3;
 
   std::vector<RxCallback> rx_callbacks_;
+  std::vector<TxCallback> tx_callbacks_;
 
   int filter_id_ = 0;
 
@@ -30,7 +35,7 @@ class SimpleCAN {
 
       if (can_.read(msg)) {
         for (auto const &cb : rx_callbacks_) {
-          cb(*this, msg);
+          cb(msg.id, std::vector<uint8_t>(msg.data, msg.data + msg.len));
         }
       }
     }
@@ -39,6 +44,10 @@ class SimpleCAN {
  public:
   // 1 -> success
   inline int Send(uint32_t id, std::vector<uint8_t> const &data) {
+    for (auto const &cb : tx_callbacks_) {
+      cb(id, data);
+    }
+
     CANMessage msg;
     msg.id = id;
     msg.len = data.size();
@@ -54,7 +63,9 @@ class SimpleCAN {
     thread_.start(callback(this, &SimpleCAN::ThreadMain));
   }
 
-  void OnRx(int priority, RxCallback cb) { rx_callbacks_.emplace_back(cb); }
+  void OnRx(RxCallback cb) { rx_callbacks_.emplace_back(cb); }
+
+  void OnTx(TxCallback cb) { tx_callbacks_.emplace_back(cb); }
 
   void Accept(uint id, uint mask) {
     can_.filter(id, mask, CANStandard, filter_id_++);
@@ -81,20 +92,20 @@ class DistributedCAN {
 
   std::vector<EventCallback> callbacks_;
 
-  inline void HandleMessage(CANMessage const &message) {
+  inline void HandleMessage(uint32_t id, std::vector<uint8_t> const &data) {
     bool called = false;
 
     for (auto const &cb : callbacks_) {
-      if (cb.element_id == message.id) {
-        cb.cb(std::vector<uint8_t>(message.data, message.data + message.len));
+      if (cb.element_id == id) {
+        cb.cb(data);
         called = true;
       }
     }
 
     if (!called) {
-      printf("Unhandled message: %d, Data: ", message.id);
-      for (int i = 0; i < message.len; i++) {
-        printf("%02X ", message.data[i]);
+      printf("Unhandled message: %d, Data: ", id);
+      for (int i = 0; i < data.size(); i++) {
+        printf("%02X ", data[i]);
       }
       printf("\n");
     }
@@ -106,12 +117,15 @@ class DistributedCAN {
 
   void Init() {
     can_.Init();
-    can_.OnRx(0, [this](SimpleCAN &can, CANMessage const &message) {
-      this->HandleMessage(message);
+    can_.OnRx([this](uint32_t id, std::vector<uint8_t> const &data) {
+      this->HandleMessage(id, data);
     });
 
     OnEvent(0x80, [this](std::vector<uint8_t> data) {
-      can_.Send(0x81 + can_id, {});
+      auto ret = can_.Send(0x81 + can_id, {});
+      if (ret != 1) {
+        printf("DistributedCAN::Pong failed\n");
+      }
     });
 
     SetStatus(Statuses::kCANReady);
@@ -123,6 +137,9 @@ class DistributedCAN {
 
     can_.Accept(element_id, 0xFF);
   }
+
+  void OnRx(SimpleCAN::RxCallback cb) { can_.OnRx(cb); }
+  void OnTx(SimpleCAN::TxCallback cb) { can_.OnTx(cb); }
 
   int Send(uint8_t element_id, std::vector<uint8_t> const &data) {
     return can_.Send(element_id, data);
