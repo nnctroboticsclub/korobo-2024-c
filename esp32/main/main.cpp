@@ -45,7 +45,6 @@ class CANDriver {
       auto status =
           twai_read_alerts_v2(driver, &alerts, 1000 / portTICK_PERIOD_MS);
       if (status == ESP_ERR_TIMEOUT) {
-        vTaskDelay(pdMS_TO_TICKS(10));
         continue;
       }
 
@@ -97,7 +96,37 @@ class CANDriver {
     }
   }
 
-  void AddBitSample(int bits) { bits_per_sample_ += bits; }
+  static void MessageWatcher(void* args) {
+    static const char* TAG = "MessageWatcher#CANDriver";
+
+    auto& self = *static_cast<CANDriver*>(args);
+    auto driver = self.twai_driver_;
+
+    while (1) {
+      twai_message_t msg;
+      auto status = twai_receive_v2(driver, &msg, 500 / portTICK_PERIOD_MS);
+      if (status == ESP_ERR_TIMEOUT) {
+        continue;
+      }
+
+      if (status != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to receive TWAI message: %s",
+                 esp_err_to_name(status));
+        continue;
+      }
+
+      std::vector<uint8_t> data(msg.data_length_code);
+      std::copy(msg.data, msg.data + msg.data_length_code, data.begin());
+
+      for (auto& cb : self.callbacks_[msg.identifier]) {
+        cb(msg.identifier, data);
+      }
+
+      for (auto& cb : self.rx_callbacks_) {
+        cb(msg.identifier, data);
+      }
+    }
+  }
 
   static void BitSampleThread(void* args) {
     auto self = static_cast<CANDriver*>(args);
@@ -118,6 +147,8 @@ class CANDriver {
     }
   }
 
+  void AddBitSample(int bits) { bits_per_sample_ += bits; }
+
  public:
   CANDriver() : twai_driver_(nullptr), callbacks_(), bus_locked(false) {}
 
@@ -128,9 +159,10 @@ class CANDriver {
     twai_timing_config_t timing_config = TWAI_TIMING_CONFIG_1MBITS();
     twai_filter_config_t filter_config = TWAI_FILTER_CONFIG_ACCEPT_ALL();
 
-    general_config.rx_queue_len = 100;
-    general_config.tx_queue_len = 100;
-    general_config.alerts_enabled = TWAI_ALERT_ALL;
+    general_config.rx_queue_len = 50;
+    general_config.tx_queue_len = 50;
+    general_config.alerts_enabled =
+        TWAI_ALERT_TX_FAILED | TWAI_ALERT_BUS_RECOVERED | TWAI_ALERT_BUS_OFF;
 
     auto status = twai_driver_install_v2(&general_config, &timing_config,
                                          &filter_config, &twai_driver_);
@@ -158,6 +190,8 @@ class CANDriver {
     });
 
     xTaskCreate(CANDriver::AlertLoop, "AlertLoop#CAN", 4096, this, 1, NULL);
+    xTaskCreate(CANDriver::MessageWatcher, "MessageWatcher#CAN", 4096, this, 15,
+                NULL);
     xTaskCreate(CANDriver::BitSampleThread, "BitSampleThread#CAN", 4096, this,
                 1, NULL);
   }
@@ -508,6 +542,7 @@ class App {
         [this](uint8_t device) { this->SendCANtoRoboWs(0xff, {device}); });
 
     can_.OnMessage(0xa0, [this](uint32_t id, std::vector<uint8_t> const& data) {
+      ESP_LOG_BUFFER_HEXDUMP("CAN", data.data(), data.size(), ESP_LOG_INFO);
       uint32_t msg_id = data[0];
       std::vector<uint8_t> payload(data.begin() + 1, data.end());
       this->SendCANtoRoboWs(msg_id, payload);
@@ -535,7 +570,7 @@ class App {
                                           static_cast<uint8_t>(load_int >> 8),
                                           static_cast<uint8_t>(load_int),
                                       });
-            vTaskDelay(pdMS_TO_TICKS(200));
+            vTaskDelay(pdMS_TO_TICKS(500));
           }
         },
         "LoadReporting", 4096, this, 1, NULL);
