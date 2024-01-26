@@ -15,7 +15,6 @@ struct Muxer {
     if (index < 0 || index >= inputs_.size()) {
       return;
     }
-    printf("muxer select %d\n", index);
     selected_ = index;
     output_.SetValue(inputs_[index]->GetValue());
   }
@@ -24,7 +23,7 @@ struct Muxer {
     int i = inputs_.size();
     inputs_.push_back(&input);
     input.SetChangeCallback([this, i](T value) {
-      if (selected_ < i) {
+      if (selected_ == i) {
         output_.SetValue(value);
       }
     });
