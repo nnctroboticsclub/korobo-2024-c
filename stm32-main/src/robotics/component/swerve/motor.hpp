@@ -23,8 +23,11 @@ class Motor {
   filter::Joystick2Angle angle_power;
 
   void UpdateAnglePower() {
-    auto vector =
-        velocity.GetValue() + normal_vector_ * rotation.GetValue() / 90;
+    auto rot = rotation.GetValue();
+
+    if (rot > 180) rot -= 360;
+
+    auto vector = velocity.GetValue() + normal_vector_ * rot / 90;
     angle_power.in.SetValue(vector);
   }
 
