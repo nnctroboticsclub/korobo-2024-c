@@ -60,7 +60,7 @@ class Swerve {
       move_ctrl.Link(motor->velocity);
 
       // anglePID >> motor
-      angle_ctrl.Link(motor->rotation);
+      rot_in_normalizer.output.Link(motor->rotation);
     }
   }
 

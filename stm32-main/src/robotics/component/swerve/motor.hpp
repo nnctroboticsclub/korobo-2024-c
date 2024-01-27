@@ -18,17 +18,18 @@ class Motor {
   Node<float> drive_;                 // out: drive power
   filter::AngledMotor<float> steer_;  // out: steer angle
 
+  Node<Vector<float, 2>> vector;  // debug: vector
+
  private:
   Vector<float, 2> normal_vector_;
   filter::Joystick2Angle angle_power;
 
   void UpdateAnglePower() {
     auto rot = rotation.GetValue();
+    auto vel = velocity.GetValue();
 
-    if (rot > 180) rot -= 360;
-
-    auto vector = velocity.GetValue() + normal_vector_ * rot / 90;
-    angle_power.in.SetValue(vector);
+    auto vector_ = vel + normal_vector_ * rot / 90;
+    vector.SetValue(vector_);
   }
 
  public:
@@ -40,6 +41,8 @@ class Motor {
         [this](Vector<float, 2> vector) { UpdateAnglePower(); });
 
     rotation.SetChangeCallback([this](float angle) { UpdateAnglePower(); });
+
+    vector.Link(angle_power.in);
 
     angle_power.out.SetChangeCallback([this](types::AngleStick2D angle_vector) {
       steer_.goal.SetValue(angle_vector.angle);
