@@ -22,6 +22,10 @@ class AngleNormalizer {
 
       value += delta_rot_y_deg;
 
+      if (input == 0 && (int)value % 360 == 0) {
+        value = 0;
+      }
+
       output.SetValue(value);
     });
   }
