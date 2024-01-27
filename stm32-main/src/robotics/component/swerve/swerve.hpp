@@ -52,15 +52,15 @@ class Swerve {
     angle_ctrl.Link(rot_in_normalizer.input);
     rot_in_normalizer.output.Link(angle.goal_);
 
-    muxer.AddInput(angle_ctrl);
     muxer.AddInput(angle.output_);
+    muxer.AddInput(angle_ctrl);
 
     for (auto& motor : motors) {
       // move_ctrl >> motor
       move_ctrl.Link(motor->velocity);
 
       // anglePID >> motor
-      rot_in_normalizer.output.Link(motor->rotation);
+      muxer.output_.Link(motor->rotation);
     }
   }
 
