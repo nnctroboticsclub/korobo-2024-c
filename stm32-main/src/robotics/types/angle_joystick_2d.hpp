@@ -4,11 +4,11 @@ inline namespace types {
 
 class AngleStick2D {
  public:
-  uint8_t magnitude;
-  uint8_t angle;  // clockwise
+  float magnitude;
+  float angle;  // clockwise
 
   AngleStick2D() : magnitude(0), angle(0) {}
-  AngleStick2D(uint8_t magnitude, uint8_t angle)
+  AngleStick2D(float magnitude, float angle)
       : magnitude(magnitude), angle(angle) {}
 
   bool operator==(AngleStick2D const& other) const {
