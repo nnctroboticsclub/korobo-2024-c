@@ -55,6 +55,8 @@ class Motor {
 
   Motor(Motor&&) = default;
   Motor& operator=(Motor&&) = default;
+
+  void Update(float dt) { this->steer_.Update(dt); }
 };
 
 }  // namespace robotics::component::swerve

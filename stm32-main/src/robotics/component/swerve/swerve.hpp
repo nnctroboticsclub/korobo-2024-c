@@ -69,7 +69,7 @@ class Swerve {
     angle.Update(dt);
 
     for (auto motor : motors) {
-      motor->steer_.Update(dt);
+      motor->Update(dt);
     }
   }
 
