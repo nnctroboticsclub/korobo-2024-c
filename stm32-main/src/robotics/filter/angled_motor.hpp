@@ -14,7 +14,7 @@ class AngledMotor {
   Node<float> output;
 
  public:
-  AngledMotor() : pid(0, 0, 0), feedback(0), goal(0), output(0) {
+  AngledMotor() : feedback(0), goal(0), output(0) {
     feedback.Link(pid.fb_);
     goal.Link(pid.goal_);
 
