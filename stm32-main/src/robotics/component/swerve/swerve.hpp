@@ -30,12 +30,12 @@ class Swerve {
 
   std::array<Motor*, 3> motors;  // for injection
 
-  filter::PID<float> angle{0.7f, 0.30f, 0.15f};  // robot angle pid
+  filter::PID<float> angle{3.0f, 0.0f, 0.0f};  // robot angle pid
  private:
   filter::AngleNormalizer<float> rot_in_normalizer;  // ctrl angle normalizer
   filter::AngleNormalizer<float>
-      self_rot_y_normalizer;   // robot angle normalizer
-  filter::Muxer<float> muxer;  // muxer for angle pid switch
+      self_rot_y_normalizer;  // robot angle normalizer
+  filter::Muxer<float> rot_power_muxer;
 
  public:
   Swerve(Config& config)
@@ -45,22 +45,23 @@ class Swerve {
             new Motor(config.angle_offsets[2]),
         } {
     // robot_angle >> normalizer >> anglePID
+    // angle_ctrl >> normalizer >> anglePID
+    // (AnglePID, AngleCtrl) >> Angle Muxer >> motor rotation
+
+    // MoveCtrl >> motor velocity
+
     robot_angle.Link(self_rot_y_normalizer.input);
     self_rot_y_normalizer.output.Link(angle.fb_);
 
-    // angle_ctrl >> normalizer >> anglePID
     angle_ctrl.Link(rot_in_normalizer.input);
     rot_in_normalizer.output.Link(angle.goal_);
 
-    muxer.AddInput(angle.output_);
-    muxer.AddInput(angle_ctrl);
+    rot_power_muxer.AddInput(angle.output_);
+    rot_power_muxer.AddInput(angle_ctrl);
 
     for (auto& motor : motors) {
-      // move_ctrl >> motor
       move_ctrl.Link(motor->velocity);
-
-      // anglePID >> motor
-      muxer.output_.Link(motor->rotation);
+      rot_power_muxer.output_.Link(motor->rotation);
     }
   }
 
@@ -74,9 +75,9 @@ class Swerve {
 
   void SetAnglePID(bool enabled) {
     if (enabled) {
-      muxer.Select(0);
+      rot_power_muxer.Select(0);
     } else {
-      muxer.Select(1);
+      rot_power_muxer.Select(1);
     }
   }
 };
