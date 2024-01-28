@@ -19,11 +19,6 @@ class BNO055 : public Base {
   Timer timer;
 
   void ThreadMain() {
-    if (!bno055_.check()) {
-      printf("BNO055 not detected\n");
-      return;
-    }
-
     bno055_.reset();
 
     bno055_.setpowermode(POWER_MODE_NORMAL);
@@ -43,6 +38,13 @@ class BNO055 : public Base {
  public:
   BNO055(PinName SDA, PinName SDL) : bno055_(SDA, SDL) {}
 
-  void Init() { thread.start(callback(this, &BNO055::ThreadMain)); }
+  bool Init() {
+    if (!bno055_.check()) {
+      return false;
+    }
+
+    thread.start(callback(this, &BNO055::ThreadMain));
+    return true;
+  }
 };
 }  // namespace robotics::sensor::gyro
