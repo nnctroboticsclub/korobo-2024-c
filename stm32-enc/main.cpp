@@ -12,6 +12,15 @@ using namespace std::chrono_literals;
 
 using namespace rtos;
 
+void AtomicPrint(std::string const& string) {
+  static Mutex* mtx = nullptr;
+  if (!mtx) mtx = new Mutex;
+
+  mtx->lock();
+  printf("%s", string.c_str());
+  mtx->unlock();
+}
+
 template <typename T>
 class UpdateDetector {
  private:
@@ -40,40 +49,62 @@ class UpdateDetector {
 
 class PseudoAbsEncoder {
  private:
-  static Timer timer_;
+  int pulses_per_rotation = 200;
 
-  QEI* qei_;  // calling RPM or RPS may causes a crash (because of gettime())
-  InterruptIn* index_;
+  int current_pulses = 0;
+  bool is_abs_ready = false;
 
-  void IndexRise() { qei_->qei_reset(); }
+  InterruptIn A_;
+  InterruptIn B_;
+  InterruptIn index_;
 
  public:
   struct Config {
     PinName a, b, index;
   };
 
-  PseudoAbsEncoder(PinName A, PinName B, PinName index) {
+  PseudoAbsEncoder(PinName A, PinName B, PinName index)
+      : A_(A), B_(B), index_(index) {
     printf("PseudoAbsEncoder(%d, %d, %d)\n", A, B, index);
-    qei_ = new QEI(A, B, NC, 200, &PseudoAbsEncoder::timer_);
 
-    index_ = new InterruptIn(index);
-    index_->rise(callback(this, &PseudoAbsEncoder::IndexRise));
+    A_.rise([this]() {
+      auto b = B_.read();
+      if (b) {
+        current_pulses += 1;
+      } else {
+        current_pulses -= 1;
+      }
+    });
+    A_.fall([this]() {
+      auto b = B_.read();
+      if (b) {
+        current_pulses -= 1;
+      } else {
+        current_pulses += 1;
+      }
+    });
+    index_.rise([this]() {
+      current_pulses = 0;
+      is_abs_ready = true;
+    });
+
     printf("PseudoAbsEncoder(%d, %d, %d) done\n", A, B, index);
   }
 
   PseudoAbsEncoder(Config const& config)
       : PseudoAbsEncoder(config.a, config.b, config.index) {}
 
-  double GetAngle() { return qei_->getAngle(); }
-  int GetPulses() { return qei_->getPulses(); }
+  double GetAngle() { return 360 * current_pulses / pulses_per_rotation; }
+  int GetPulses() { return current_pulses; }
+
+  bool IsAbsReady() { return is_abs_ready; }
 };
 
-Timer PseudoAbsEncoder::timer_;
-
-class DistributedPseudoAbsEncoder {
+class DistributedPseudoAbsEncoder : public PseudoAbsEncoder {
  private:
-  PseudoAbsEncoder encoder_;
   UpdateDetector<double> angle_;
+  UpdateDetector<bool> abs_ready_detector_;
+
   struct {
     bool enabled;
     DistributedCAN* can;
@@ -83,7 +114,7 @@ class DistributedPseudoAbsEncoder {
   void Send_() {
     if (!attached_can_.enabled) return;
 
-    uint16_t value = (int16_t)(encoder_.GetAngle() / 360.0f * 0x7FFF);
+    uint16_t value = (int16_t)(this->GetAngle() / 360.0f * 0x7FFF);
 
     std::vector<uint8_t> payload;
     payload.push_back(0x60 | attached_can_.dev_id);
@@ -95,12 +126,23 @@ class DistributedPseudoAbsEncoder {
       printf("DistributedPseudoAbsEncoder::Send_/CanSend() failed\n");
     }
   }
+  void SendAbsReady_() {
+    if (!attached_can_.enabled) return;
+
+    std::vector<uint8_t> payload;
+    payload.push_back(0xe0);
+    payload.push_back(attached_can_.dev_id);
+    payload.push_back(this->IsAbsReady());
+    payload.push_back(0x00);
+
+    auto ret = attached_can_.can->Send(0x61, payload);
+    if (ret != 1) {
+      printf("DistributedPseudoAbsEncoder::Send_/CanSend() failed\n");
+    }
+  }
 
  public:
-  DistributedPseudoAbsEncoder(PseudoAbsEncoder const& encoder)
-      : encoder_(encoder) {}
-
-  double GetAngle() { return encoder_.GetAngle(); }
+  using PseudoAbsEncoder::PseudoAbsEncoder;
 
   void AttachSend(DistributedCAN& can, int dev_id) {
     attached_can_.enabled = true;
@@ -109,8 +151,12 @@ class DistributedPseudoAbsEncoder {
   }
 
   void Update() {
-    if (angle_.Update(encoder_.GetAngle())) {
+    if (angle_.Update(this->GetAngle())) {
       Send_();
+    }
+
+    if (abs_ready_detector_.Update(this->IsAbsReady())) {
+      SendAbsReady_();
     }
   }
 };
@@ -142,10 +188,18 @@ class App {
   Thread sender_thread_;
 
   void MonitorThread() {
+    char buf[80];
     while (1) {
-      printf("encoders: %lf %lf %lf %lf\n", encoder_sm0_.GetAngle(),
-             encoder_sm1_.GetAngle(), encoder_sm2_.GetAngle(),
-             encoder_dummy_.GetAngle());
+      snprintf(buf, 80,
+               "encoders: %d(%4.1lf)[%d] %d(%4.1lf)[%d] %d(%4.1lf)[%d] "
+               "%d(%4.1lf)[%d\n",
+               encoder_sm0_.GetPulses(), encoder_sm0_.GetAngle(),
+               encoder_sm0_.IsAbsReady(), encoder_sm1_.GetPulses(),
+               encoder_sm1_.GetAngle(), encoder_sm1_.IsAbsReady(),
+               encoder_sm2_.GetPulses(), encoder_sm2_.GetAngle(),
+               encoder_sm2_.IsAbsReady(), encoder_dummy_.GetPulses(),
+               encoder_dummy_.GetAngle(), encoder_dummy_.IsAbsReady());
+      AtomicPrint(buf);
       wait_ns(500E6);
     }
   }
@@ -183,6 +237,14 @@ class App {
   }
 };
 
+int main2(int argc, char const* argv[]) {
+  PseudoAbsEncoder encoder(PB_14, PB_15, PB_13);
+  while (1) {
+    printf("%4d(%4.1lf)\n", encoder.GetPulses(), encoder.GetAngle());
+  }
+  return 0;
+}
+
 int main(int argc, char const* argv[]) {
   printf("main() started CAN_ID=%d\n", CAN_ID);
   App::Config config{.can =
@@ -192,10 +254,11 @@ int main(int argc, char const* argv[]) {
                              .rx = PB_8,
                              .tx = PB_9,
                          },
-                     .encoder_sm0 = {.a = PA_1, .b = PB_2, .index = PB_3},
-                     .encoder_sm1 = {.a = PC_4, .b = PC_5, .index = PC_6},
-                     .encoder_sm2 = {.a = PA_7, .b = PC_8, .index = PA_9},
-                     .encoder_dummy = {.a = PB_13, .b = PB_14, .index = PB_15}};
+                     .encoder_sm0 = {.a = PA_6, .b = PC_9, .index = PC_7},
+                     .encoder_sm1 = {.a = PB_14, .b = PB_15, .index = PB_13},
+                     .encoder_sm2 = {.a = PA_0, .b = PB_10, .index = PA_1},
+                     .encoder_dummy = {.a = PB_2, .b = PC_8, .index = PA_3}};
+  // PB_4: LED
 
   printf("Initializing class\n");
   App app(config);
