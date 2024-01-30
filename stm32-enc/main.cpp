@@ -114,26 +114,14 @@ class DistributedPseudoAbsEncoder : public PseudoAbsEncoder {
   void Send_() {
     if (!attached_can_.enabled) return;
 
-    uint16_t value = (int16_t)(this->GetAngle() / 360.0f * 0x7FFF);
+    auto angle = this->IsAbsReady() ? this->GetAngle() : 0;
+
+    uint16_t value = (int16_t)(angle / 360.0f * 0x7FFF);
 
     std::vector<uint8_t> payload;
     payload.push_back(0x60 | attached_can_.dev_id);
     payload.push_back(value >> 8);
     payload.push_back(value & 0xFF);
-
-    auto ret = attached_can_.can->Send(0x61, payload);
-    if (ret != 1) {
-      printf("DistributedPseudoAbsEncoder::Send_/CanSend() failed\n");
-    }
-  }
-  void SendAbsReady_() {
-    if (!attached_can_.enabled) return;
-
-    std::vector<uint8_t> payload;
-    payload.push_back(0xe0);
-    payload.push_back(attached_can_.dev_id);
-    payload.push_back(this->IsAbsReady());
-    payload.push_back(0x00);
 
     auto ret = attached_can_.can->Send(0x61, payload);
     if (ret != 1) {
@@ -151,12 +139,12 @@ class DistributedPseudoAbsEncoder : public PseudoAbsEncoder {
   }
 
   void Update() {
-    if (angle_.Update(this->GetAngle())) {
+    if (angle_.Update(this->GetAngle()) && this->IsAbsReady()) {
       Send_();
     }
 
     if (abs_ready_detector_.Update(this->IsAbsReady())) {
-      SendAbsReady_();
+      Send_();
     }
   }
 };
