@@ -26,7 +26,7 @@ class Swerve {
   Node<float> robot_angle;  // in: feedback robot angle
 
   Node<types::JoyStick2D> move_ctrl;  // in: move velocity
-  Node<float> angle_ctrl;             // in: angle rotation
+  Node<float> angle_ctrl{0};          // in: angle rotation
 
   std::array<Motor*, 3> motors;  // for injection
 
