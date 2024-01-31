@@ -40,6 +40,11 @@ class Node {
 
   void SetChangeCallback(Callback callback) { callbacks_.push_back(callback); }
   void Link(Node<T>& input) { linked_inputs_.push_back(&input); }
+
+  Node<T>& operator>>(Node<T>& next) {
+    Link(next);
+    return next;
+  }
 };
 }  // namespace node
 
