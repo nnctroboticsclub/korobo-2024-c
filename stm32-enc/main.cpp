@@ -114,9 +114,8 @@ class DistributedPseudoAbsEncoder : public PseudoAbsEncoder {
   void Send_() {
     if (!attached_can_.enabled) return;
 
-    auto angle = this->IsAbsReady() ? this->GetAngle() : 0;
-
-    uint16_t value = (int16_t)(angle / 360.0f * 0x7FFF);
+    uint16_t value = (int16_t)(this->GetAngle() / 360.0f * 0x7FFF);
+    printf("Sending 0x%04x as Enc%d\n", value, this->attached_can_.dev_id);
 
     std::vector<uint8_t> payload;
     payload.push_back(0x60 | attached_can_.dev_id);
@@ -143,8 +142,8 @@ class DistributedPseudoAbsEncoder : public PseudoAbsEncoder {
       Send_();
     }
 
-    if (abs_ready_detector_.Update(this->IsAbsReady())) {
-      Send_();
+    if (abs_ready_detector_.Update(this->IsAbsReady()) && this->IsAbsReady()) {
+      printf("Encoder[%d] ready!\n", this->attached_can_.dev_id);
     }
   }
 };
@@ -176,6 +175,7 @@ class App {
   Thread sender_thread_;
 
   void MonitorThread() {
+    return;
     char buf[80];
     while (1) {
       snprintf(buf, 80,
