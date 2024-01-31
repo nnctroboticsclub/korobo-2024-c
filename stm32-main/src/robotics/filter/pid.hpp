@@ -38,5 +38,9 @@ class PID {
     T output = value.p * error + value.i * integral_ + value.d * derivative;
     output_.SetValue(output);
   }
+
+  T CalculateError() {
+    return (fb_.GetValue() - goal_.GetValue()) / goal_.GetValue();
+  }
 };
 }  // namespace robotics::filter
