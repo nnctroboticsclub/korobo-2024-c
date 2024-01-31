@@ -14,7 +14,7 @@ class Node {
   std::vector<Callback> callbacks_;
 
  public:
-  Node() {}
+  Node() : Node({}) {}
   Node(T value) : value_(value) {}
 
   Node(Node<T>&) = delete;
