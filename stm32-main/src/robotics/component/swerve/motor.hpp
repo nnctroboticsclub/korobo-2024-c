@@ -18,7 +18,7 @@ class Motor {
   Node<float> drive_;                 // out: drive power
   filter::AngledMotor<float> steer_;  // out: steer angle
 
-  Node<Vector<float, 2>> vector;  // debug: vector
+  Node<Vector<float, 2>> vector{{0, 0}};  // debug: vector
 
  private:
   Vector<float, 2> normal_vector_;
@@ -48,6 +48,8 @@ class Motor {
       steer_.goal.SetValue(angle_vector.angle);
       drive_.SetValue(angle_vector.magnitude);
     });
+
+    UpdateAnglePower();
   }
 
   Motor(Motor const&) = delete;
