@@ -6,6 +6,8 @@
 #include <unordered_map>
 #include <functional>
 #include <vector>
+#include <sstream>
+#include <iomanip>
 
 class SimpleCAN {
  public:
@@ -20,8 +22,6 @@ class SimpleCAN {
 
   std::vector<RxCallback> rx_callbacks_;
   std::vector<TxCallback> tx_callbacks_;
-
-  int filter_id_ = 0;
 
   Thread thread_;
 
@@ -58,18 +58,11 @@ class SimpleCAN {
   SimpleCAN(PinName rx, PinName tx, int freqency = 50E3)
       : can_(rx, tx, freqency), freqency_(freqency) {}
 
-  void Init() {
-    can_.filter(0x000, 0x000, CANStandard, 0);
-    thread_.start(callback(this, &SimpleCAN::ThreadMain));
-  }
+  void Init() { thread_.start(callback(this, &SimpleCAN::ThreadMain)); }
 
   void OnRx(RxCallback cb) { rx_callbacks_.emplace_back(cb); }
 
   void OnTx(TxCallback cb) { tx_callbacks_.emplace_back(cb); }
-
-  void Accept(uint id, uint mask) {
-    can_.filter(id, mask, CANStandard, filter_id_++);
-  }
 };
 
 class DistributedCAN {
@@ -93,21 +86,10 @@ class DistributedCAN {
   std::vector<EventCallback> callbacks_;
 
   inline void HandleMessage(uint32_t id, std::vector<uint8_t> const &data) {
-    bool called = false;
-
     for (auto const &cb : callbacks_) {
       if (cb.element_id == id) {
         cb.cb(data);
-        called = true;
       }
-    }
-
-    if (!called) {
-      printf("Unhandled message: %d, Data: ", id);
-      for (int i = 0; i < data.size(); i++) {
-        printf("%02X ", data[i]);
-      }
-      printf("\n");
     }
   }
 
@@ -122,10 +104,7 @@ class DistributedCAN {
     });
 
     OnEvent(0x80, [this](std::vector<uint8_t> data) {
-      auto ret = can_.Send(0x81 + can_id, {});
-      if (ret != 1) {
-        printf("DistributedCAN::Pong failed\n");
-      }
+      can_.Send(0x81 + can_id, {});
     });
 
     SetStatus(Statuses::kCANReady);
@@ -134,8 +113,6 @@ class DistributedCAN {
   void OnEvent(uint8_t element_id,
                std::function<void(std::vector<uint8_t>)> cb) {
     callbacks_.emplace_back(EventCallback{element_id, cb});
-
-    can_.Accept(element_id, 0xFF);
   }
 
   void OnRx(SimpleCAN::RxCallback cb) { can_.OnRx(cb); }
