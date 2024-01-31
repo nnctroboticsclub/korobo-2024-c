@@ -11,11 +11,14 @@ namespace korobo::n2023c {
 struct Controller {
   struct Config {
     controller::swerve::SwerveController::Config swerve;
+    int shot_joystick_id;
   };
 
   controller::swerve::SwerveController swerve;
+  controller::JoyStick shot;
 
-  Controller(Config const& config = {}) : swerve(config.swerve) {}
+  Controller(Config const& config = {})
+      : swerve(config.swerve), shot(config.shot_joystick_id) {}
 
   bool Parse(controller::RawPacket const& packet) {
     return swerve.Parse(packet);
