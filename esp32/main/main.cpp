@@ -372,25 +372,25 @@ class App {
         .uarts = {InitConfig::Uart{
             .port = 1,
             .baud_rate = 9600,
-            .tx = 27,
-            .rx = 17,
+            .tx = -1,
+            .rx = 14,
             .parity = UART_PARITY_DISABLE,
         }},
         .spi_buses = {InitConfig::SPIBus{
             .port = 2,
-            .miso = GPIO_NUM_12,
-            .mosi = GPIO_NUM_13,
-            .sclk = GPIO_NUM_14,
+            .miso = GPIO_NUM_33,
+            .mosi = GPIO_NUM_25,
+            .sclk = GPIO_NUM_26,
         }},
         .stm32bls = {InitConfig::STM32BL{
             .id = 1,
             .spi_port_id = 2,
-            .cs = GPIO_NUM_16,
+            .cs = GPIO_NUM_27,
         }},
         .stm32s = {InitConfig::STM32{
             .id = 2,
-            .reset = GPIO_NUM_17,
-            .boot0 = GPIO_NUM_33,
+            .reset = GPIO_NUM_16,
+            .boot0 = GPIO_NUM_17,
             .bl_id = 1,
         }},
         .serial_proxies = {InitConfig::SerialProxy{.id = 1, .uart_port_id = 1}},
@@ -429,7 +429,7 @@ class App {
                  .subnet = 0,
                  .gateway = 0,
              }},
-        .active_network_profile_id = 4,
+        .active_network_profile_id = 3,
         .primary_stm32_id = 2};
 
     return init_config;
@@ -542,7 +542,6 @@ class App {
         [this](uint8_t device) { this->SendCANtoRoboWs(0xff, {device}); });
 
     can_.OnMessage(0xa0, [this](uint32_t id, std::vector<uint8_t> const& data) {
-      ESP_LOG_BUFFER_HEXDUMP("CAN", data.data(), data.size(), ESP_LOG_INFO);
       uint32_t msg_id = data[0];
       std::vector<uint8_t> payload(data.begin() + 1, data.end());
       this->SendCANtoRoboWs(msg_id, payload);
