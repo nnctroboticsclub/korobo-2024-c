@@ -4,29 +4,21 @@
 #include "motor.hpp"
 
 namespace robotics::node {
-class ikakoMDCMotor : public Motor<float>, public ikakoMDC {
-  int min_speed_, max_speed_;
+class ikakoMDCMotor : public Motor<float> {
+  ikakoMDC *mdc_ = nullptr;
 
   void SetSpeed(float speed) override {
+    if (!mdc_) return;
     if (speed > 0) {
-      ikakoMDC::set_speed(speed * max_speed_);
+      mdc_->set_speed(speed * mdc_->max_speed);
     } else if (speed < 0) {
-      ikakoMDC::set_speed(speed * min_speed_);
+      mdc_->set_speed(speed * mdc_->min_speed);
     } else {
-      ikakoMDC::set_speed(0);
+      mdc_->set_speed(0);
     }
   }
 
  public:
-  ikakoMDCMotor(int motor_num, int min_speed, int max_speed)
-      : ikakoMDC(                  //
-            motor_num,             //
-            min_speed, max_speed,  //
-            0.001, 0,              //
-            2.7, 0, 0.0005,        // MDC PID
-            0.01                   //
-            ),
-        min_speed_(min_speed),
-        max_speed_(max_speed) {}
+  ikakoMDCMotor(ikakoMDC &mdc) : mdc_(&mdc) {}
 };
 }  // namespace robotics::node
