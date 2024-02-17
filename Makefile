@@ -14,10 +14,10 @@ _MCU2   = $(shell grep -l ${SER2} /sys/bus/usb/devices/*/serial)
 MCU2    = $(_MCU2:/sys/bus/usb/devices/%/serial=%)
 
 
-_DEV1   = $(shell echo /sys/bus/usb/drivers/usb-storage/${MCU1}*/host?/target*/*:*/block/*)
+_DEV1   = $(shell echo /sys/bus/usb/drivers/usb-storage/${MCU1}*/host*/target*/*:*/block/*)
 DEV1    = /dev/$(shell basename ${_DEV1})
 
-_DEV2   = $(shell echo /sys/bus/usb/drivers/usb-storage/${MCU2}*/host?/target*/*:*/block/*)
+_DEV2   = $(shell echo /sys/bus/usb/drivers/usb-storage/${MCU2}*/host*/target*/*:*/block/*)
 DEV2    = /dev/$(shell basename ${_DEV2})
 
 _ACM1   = $(shell ls /sys/bus/usb/drivers/cdc_acm/${MCU1}*/tty)
@@ -30,12 +30,6 @@ MNT1    = /mnt/st1
 MNT2    = /mnt/st2
 
 i:
-	[ ! -d $(MNT1) ] && sudo mkdir $(MNT1); true
-	[ ! -e $(MNT1)/MBED.HTM ] && sudo mount $(DEV1) $(MNT1) -o uid=1000,gid=1000; true
-
-	[ ! -d $(MNT2) ] && sudo mkdir $(MNT2); true
-	[ ! -e $(MNT2)/MBED.HTM ] && sudo mount $(DEV2) $(MNT2) -o uid=1000,gid=1000; true
-
 	[ ! -e /usr/local/bin/websocat ] && sudo cp /workspaces/korobo2023/websocat.x86_64-unknown-linux-musl /usr/local/bin/websocat; true
 
 	mbed config -G GCC_ARM_PATH /opt/gcc-arm-none-eabi-10.3-2021.10/bin
@@ -58,14 +52,22 @@ d:
 me:
 	cd /workspaces/korobo2023/esp32 && idf.py monitor
 
+# STM32@Main MCU
+
+$(MNT1):
+	sudo mkdir $(MNT1)
+
+$(MNT1)/MBED.HTM: $(MNT1)
+	sudo mount $(DEV1) $(MNT1) -o uid=1000,gid=1000
+
 cs1:
 	cd /workspaces/korobo2023/stm32-main && \
 		mbed compile
 
-fs1:
+fs1: $(MNT1)/MBED.HTM
 	cd /workspaces/korobo2023/stm32-main && \
 		sudo cp BUILD/*/GCC_ARM/stm32-main.bin $(MNT1)/binary.bin && \
-		sudo sync $(MNT1)
+		sudo sync $(MNT1)/binary.bin
 
 ms1:
 	cd /workspaces/korobo2023/stm32-main && \
@@ -73,15 +75,26 @@ ms1:
 
 ts1: cs1 fs1 ms1
 us1: cs1 fs1
+a2r1:
+	addr2line -e /workspaces/korobo2023/stm32-main/BUILD/NUCLEO_F446RE/GCC_ARM/stm32-main.elf
+
+
+# STM32@Encoder MCU
+
+$(MNT2):
+	sudo mkdir $(MNT2)
+
+$(MNT2)/MBED.HTM: $(MNT2)
+	sudo mount $(DEV2) $(MNT2) -o uid=1000,gid=1000
 
 cs2:
 	cd /workspaces/korobo2023/stm32-enc && \
 		mbed compile
 
-fs2:
+fs2: $(MNT2)/MBED.HTM
 	cd /workspaces/korobo2023/stm32-enc && \
 		sudo cp BUILD/*/GCC_ARM/stm32-enc.bin $(MNT2)/binary.bin && \
-		sudo sync $(MNT1)
+		sudo sync $(MNT2)/binary.bin
 
 ms2:
 	cd /workspaces/korobo2023/stm32-enc && \
@@ -89,6 +102,10 @@ ms2:
 
 ts2: cs2 fs2 ms2
 us2: cs2 fs2
+a2r2:
+	addr2line -e /workspaces/korobo2023/stm32-enc/BUILD/NUCLEO_F446RE/GCC_ARM/stm32-enc.elf
+
+# Some useful commands
 
 lu:
 	@{ for D in /sys/bus/usb/devices/*; do \
@@ -101,6 +118,27 @@ lu:
 
 ws:
 	watch -n 1 ls /mnt/st*
+
+lc:
+	wc -l $$(find . \
+		-not \( \
+			-path *QEI2_os6* \
+			-o -path *ikakoMDC* \
+			-o -path ./stm32-main/bno055 \
+			-o -path *build* \
+			-o -path *ikarashiCAN_mk2* \
+			-o -path *BUILD/NUCLEO_F446RE* \
+			-o -path *managed_components* \
+			-o -path *mbed-os* \
+		\) -a \
+		\( \
+			-name *.hpp \
+			-o -name *.cpp \
+			-o -name *.c \
+			-o -name *.h \
+		\))
+
+# Tmux
 
 tms:
 	tmux start
