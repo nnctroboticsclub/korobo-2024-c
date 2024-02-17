@@ -33,8 +33,14 @@
 | 011 |   ID    | 2 byte  | Encoder           |
 | 100 |   ID    | 0 byte  | Do Action (ID)    |
 | 101 |   ID    | 3 byte  | PID P, I, D Gains |
-| 110 |   ID    | 0 byte  | Stop driving      |
-| 111 |   ID    | 0 byte  | Start driving     |
+| 110 |   ID    | 0 byte  | Soft EMC Stop     |
+| 111 |   ID    | 3 byte  | Extended cmd      |
+
+#### 拡張コマンド
+
+| Status | ID | payload[0] | payload[1] | payload[2] | Used by            |
+| ------ | -- | ---------- | ---------- | ---------- | ------------------ |
+| Del    | 00 | EncoderID  | Abs ready  | 00         | Pseudo Abs Encoder |
 
 ## 交流ロボコン 2023 長岡 C 用コントローラー ID リスト
 
@@ -45,3 +51,10 @@
 |  001 | 1   | Steer Rot Raw  | ステア角速度  |
 |  010 | 0   | Steer Move     | ステア移動    |
 |  010 | 0   | Steer Rotation | ステア角度    |
+
+## 交流ロボコン 2023 長岡 C レポートメッセージリスト
+
+| From   | Name            | ID | D0 | D1 | D2 | D3 | D4 | D5 | D6 |
+| ------ | --------------- | -- | -- | -- | -- | -- | -- | -- | -- |
+| Main   | Physical Report | 00 | M0 | R0 | M1 | R1 | M2 | R2 | RA |
+| Main   | PID Errors      | 01 | R0 | R1 | R2 | An | -  | -  | -  |
