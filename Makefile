@@ -62,11 +62,11 @@ $(MNT1)/MBED.HTM: $(MNT1)
 
 cs1:
 	cd /workspaces/korobo2023/stm32-main && \
-		mbed compile
+		mbed compile --profile mbed-os/tools/profiles/debug.json
 
 fs1: $(MNT1)/MBED.HTM
 	cd /workspaces/korobo2023/stm32-main && \
-		sudo cp BUILD/*/GCC_ARM/stm32-main.bin $(MNT1)/binary.bin && \
+		sudo cp BUILD/*/GCC_ARM-DEBUG/stm32-main.bin $(MNT1)/binary.bin && \
 		sudo sync $(MNT1)/binary.bin
 
 ms1:
@@ -76,7 +76,7 @@ ms1:
 ts1: cs1 fs1 ms1
 us1: cs1 fs1
 a2r1:
-	addr2line -e /workspaces/korobo2023/stm32-main/BUILD/NUCLEO_F446RE/GCC_ARM/stm32-main.elf
+	addr2line -e /workspaces/korobo2023/stm32-main/BUILD/NUCLEO_F446RE/GCC_ARM-DEBUG/stm32-main.elf
 
 
 # STM32@Encoder MCU

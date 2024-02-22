@@ -20,7 +20,7 @@ class IncAngledMotor {
   AngleClamper<T> output_filter;
 
  public:
-  IncAngledMotor() : feedback(0), goal(0), output(0) {
+  IncAngledMotor() : encoder(0), output(0), goal(0) {
     encoder.Link(feedback_filter.input);
     feedback_filter.output.Link(pid.fb_);
 

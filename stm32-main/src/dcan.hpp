@@ -23,7 +23,7 @@ class SimpleCAN {
   std::vector<RxCallback> rx_callbacks_;
   std::vector<TxCallback> tx_callbacks_;
 
-  Thread thread_;
+  Thread *thread_;
 
   void ThreadMain() {
     CANMessage msg;
@@ -58,7 +58,10 @@ class SimpleCAN {
   SimpleCAN(PinName rx, PinName tx, int freqency = 50E3)
       : can_(rx, tx, freqency), freqency_(freqency) {}
 
-  void Init() { thread_.start(callback(this, &SimpleCAN::ThreadMain)); }
+  void Init() {
+    thread_ = new Thread(osPriorityNormal, 1024 * 4);
+    thread_->start(callback(this, &SimpleCAN::ThreadMain));
+  }
 
   void OnRx(RxCallback cb) { rx_callbacks_.emplace_back(cb); }
 

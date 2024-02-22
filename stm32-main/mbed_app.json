@@ -9,5 +9,5 @@
             "platform.minimal-printf-set-floating-point-max-decimals": 6
         }
     },
-    "macros": ["MBED_ALL_STATS_ENABLED"]
+    "macros": ["MBED_ALL_STATS_ENABLED", "MBED_CONF_PLATFORM_ERROR_FILENAME_CAPTURE_ENABLED=1"]
 }

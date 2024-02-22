@@ -13,8 +13,7 @@
 namespace robotics::sensor::gyro {
 class BNO055 : public Base {
   ::BNO055 bno055_;
-  rtos::Thread thread;
-  rtos::Thread monitor_thread;
+  rtos::Thread *thread;
 
   Timer timer;
 
@@ -43,7 +42,8 @@ class BNO055 : public Base {
       return false;
     }
 
-    thread.start(callback(this, &BNO055::ThreadMain));
+    thread = new rtos::Thread(osPriorityNormal, 1024 * 4);
+    thread->start(callback(this, &BNO055::ThreadMain));
     return true;
   }
 };

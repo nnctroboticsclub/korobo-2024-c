@@ -1,0 +1,39 @@
+cd /workspaces/korobo2023/stm32-main && \
+	mbed compile
+[Warning] @,: Compiler version mismatch: Have 10.3.1; expected version >= 9.0.0 and < 10.0.0
+Building project stm32-main (NUCLEO_F446RE, GCC_ARM)
+Scan: stm32-main
+Compile [100.0%]: main.cpp
+[Warning] main.cpp@169,9: unused variable 'c' [-Wunused-variable]
+[Warning] muxer.hpp@15,15: comparison of unsigned expression in '< 0' is always false [-Wtype-limits]
+Link: stm32-main
+Elf2Bin: stm32-main
+| Module                            |         .text |    .data |      .bss |
+|-----------------------------------|---------------|----------|-----------|
+| [fill]                            |      216(+46) |   10(+0) |    44(+0) |
+| [lib]/c.a                         |     61404(+0) | 2574(+0) |    97(+0) |
+| [lib]/gcc.a                       |      7256(+0) |    0(+0) |     0(+0) |
+| [lib]/m.a                         |      5860(+0) |    0(+0) |     0(+0) |
+| [lib]/misc                        |       188(+0) |    4(+0) |    28(+0) |
+| [lib]/nosys.a                     |        32(+0) |    0(+0) |     0(+0) |
+| [lib]/stdc++.a                    |    170032(+0) |  144(+0) |  4332(+0) |
+| bno055/bno055.o                   |       706(+0) |    0(+0) |     0(+0) |
+| ikakoMDC/PID                      |       528(+0) |    0(+0) |     0(+0) |
+| ikakoMDC/ikakoMDC.o               |     392(+224) |    0(+0) |     0(+0) |
+| ikakoMDC/lpf                      |       58(+46) |    0(+0) |     0(+0) |
+| ikarashiCAN_mk2/ikarashiCAN_mk2.o |     388(+362) |    0(+0) |     0(+0) |
+| mbed-os/cmsis                     |      7776(+0) |  168(+0) |  6081(+0) |
+| mbed-os/connectivity              |        92(+0) |    0(+0) |     0(+0) |
+| mbed-os/drivers                   |      2026(+0) |    0(+0) |     0(+0) |
+| mbed-os/hal                       |      2890(+0) |    8(+0) |   231(+0) |
+| mbed-os/platform                  |      5688(+0) |  260(+0) |   440(+0) |
+| mbed-os/rtos                      |       888(+0) |    0(+0) |     0(+0) |
+| mbed-os/targets                   |     19594(+0) |    8(+0) |   739(+0) |
+| src/main.o                        |   10638(+986) |    0(+0) |     0(+0) |
+| Subtotals                         | 296652(+1664) | 3176(+0) | 11992(+0) |
+Total Static RAM memory (data + bss): 15168(+0) bytes
+Total Flash memory (text + data): 299828(+1664) bytes
+
+Image: ./BUILD/NUCLEO_F446RE/GCC_ARM/stm32-main.bin
+[mbed] Working path "/workspaces/korobo2023/stm32-main" (library)
+[mbed] Program path "/workspaces/korobo2023/stm32-main"
