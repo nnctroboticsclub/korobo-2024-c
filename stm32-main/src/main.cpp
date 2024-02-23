@@ -26,12 +26,11 @@ using robotics::filter::PID;
 
 class MDC {
   ::ikakoMDC motors_[4];
-  /* ikakoMDC_sender sender_; */
-  // std::array<robotics::assembly::ikakoMDCPair<float>, 4> motor_nodes_;
-  /* robotics::assembly::ikakoMDCPair<float> motor_nodes_[4]; */
-  /* ikarashiCAN_mk2 *linked_ican_; */
+  ikakoMDC_sender sender_;
+  std::array<robotics::assembly::ikakoMDCPair<float>, 4> motor_nodes_;
+  ikarashiCAN_mk2 *linked_ican_;
 
-  // robotics::assembly::DummyMotorWithEncoder<float> d;
+  robotics::assembly::DummyMotorWithEncoder<float> d;
 
  public:
   MDC(ikarashiCAN_mk2 *can, int mdc_id)
@@ -42,37 +41,42 @@ class MDC {
                 ikakoMDC(4 * mdc_id + 3, -50, 50, 0.001, 0.0, 2.7, 0, 0.000015,
                          0.01),
                 ikakoMDC(4 * mdc_id + 4, -50, 50, 0.001, 0.0, 2.7, 0, 0.000015,
-                         0.01)} /* sender_(motors_, 4, can, mdc_id), */
-  /* motor_nodes_{motors_[0], motors_[1], motors_[2],
-               motors_[3]}, */
-  /* linked_ican_(can) */ {}
+                         0.01)},
+        sender_(motors_, 4, can, mdc_id),
+        motor_nodes_{motors_[0], motors_[1], motors_[2], motors_[3]},
+        linked_ican_(can) {}
 
   int Tick() {
-    /* if (sender_.read_enc() && linked_ican_->get_read_flag()) {
+    if (sender_.read_enc() && linked_ican_->get_read_flag()) {
       for (size_t i = 0; i < 4; i++) {
         motor_nodes_[i].Update();
       }
     }
-    return sender_.send(); */
-    return 0;
+    auto ret = sender_.send();
+    if (ret == 0) {
+      printf("MDC: Sending the command is failed.\n");
+    }
+    return ret;
   }
 
   robotics::assembly::MotorWithEncoder<float> &GetNode(int index) {
-    // return d;
-    // return motor_nodes_[index];
+    return motor_nodes_[index];
   }
 };
 
 class DrivingCANBus {
+  ikarashiCAN_mk2 *ican_;
   MDC mdc0_;
-  // MDC mdc1_;
-  // MDC mdc2_;
+  MDC mdc1_;
+  MDC mdc2_;
 
  public:
   DrivingCANBus(ikarashiCAN_mk2 *ican)
-      : mdc0_(ican, 0) /* , mdc1_(ican, 1), mdc2_(ican, 2) */ {}
+      : ican_(ican), mdc0_(ican, 0), mdc1_(ican, 1), mdc2_(ican, 2) {}
 
-  /* void Tick() {
+  void Init() { ican_->read_start(); }
+
+  void Tick() {
     mdc0_.Tick();
     mdc1_.Tick();
     mdc2_.Tick();
@@ -106,7 +110,65 @@ class DrivingCANBus {
 
   robotics::assembly::MotorWithEncoder<float> &GetShotR() {
     return mdc2_.GetNode(0);
-  } */
+  }
+};
+
+struct SwerveComponent {
+  robotics::component::Swerve swerve_;
+  controller::swerve::SwerveController &ctrl_;
+  controller::swerve::SwerveValueStore<float> &values_;
+
+  void Link_() {
+    ctrl_.angle_pid.Link(swerve_.angle.gains);
+    ctrl_.motor_0_pid.Link(swerve_.motors[0]->steer_.pid.gains);
+    ctrl_.motor_1_pid.Link(swerve_.motors[1]->steer_.pid.gains);
+    ctrl_.motor_2_pid.Link(swerve_.motors[2]->steer_.pid.gains);
+    ctrl_.move.Link(swerve_.move_ctrl);
+    ctrl_.angle.SetChangeCallback([this](robotics::AngleStick2D angle) {
+      swerve_.angle_ctrl.SetValue(angle.angle > 180 ? angle.angle - 360
+                                                    : angle.angle);
+    });
+    // gyro_.Link(swerve_.robot_angle);
+
+    ctrl_.rotation_pid_enabled.SetChangeCallback(
+        [this](bool enabled) { swerve_.SetAnglePID(enabled); });
+
+    // swerve fb link
+    values_.motor_0_encoder.Link(swerve_.motors[0]->steer_.feedback);
+    values_.motor_1_encoder.Link(swerve_.motors[1]->steer_.feedback);
+    values_.motor_2_encoder.Link(swerve_.motors[2]->steer_.feedback);
+  }
+
+  void ReportTo(DistributedCAN &can) {
+    std::vector<uint8_t> physical_report(8);
+    physical_report.reserve(8);
+    physical_report[0] = 0x00;
+
+    int i = 0;
+    for (auto &motor : swerve_.motors) {
+      auto angle_power = motor->steer_.output.GetValue();
+      auto mag = motor->drive_.GetValue();
+
+      physical_report[1 + i * 2] = (uint8_t)std::min((int)(mag * 255.0f), 255);
+      physical_report[2 + i * 2] =
+          (uint8_t)std::min((int)(angle_power * 255.0f), 255);
+
+      i++;
+    }
+    physical_report[7] = swerve_.robot_angle.GetValue() / 360.0 * 255;
+
+    auto ret = can.Send(0xa0, physical_report);
+    if (ret != 1) {
+      printf("Swerve Report: Sending the report is failed.\n");
+    }
+  }
+
+  SwerveComponent(robotics::component::Swerve::Config swerve_config,
+                  controller::swerve::SwerveController &b,
+                  controller::swerve::SwerveValueStore<float> &c)
+      : swerve_(swerve_config), ctrl_(b), values_(c) {
+    Link_();
+  }
 };
 
 class App {
@@ -142,145 +204,54 @@ class App {
  private:
   //* Robotics components
   // Driver
-  /* ikarashiCAN_mk2 *driving_can_bus_; */
-
   DistributedCAN can_;
-  /* DrivingCANBus driving_; */
+  std::unique_ptr<DrivingCANBus> driving_;
 
-  // Nodes
   robotics::node::BLDC bldc[3];
   robotics::sensor::gyro::BNO055 gyro_;
+  mbed::DigitalOut emc;
 
   // Controller/ValueStore
   korobo::n2023c::Controller controller_status_;
   korobo::n2023c::ValueStoreMain<float> value_store_;
 
   //* Components
-  robotics::component::Swerve swerve_;
+  std::unique_ptr<SwerveComponent> swerve_;
   korobo2023c::Upper upper_;
 
-  mbed::DigitalOut emc;
-
   //* Thread
-  Thread *thr1;
+  Thread *thr1;  //* 無関係
 
   void DoReport() {
-    std::vector<uint8_t> physical_report(8);
-    std::vector<uint8_t> pid_report(5);
-    physical_report.reserve(8);
-    pid_report.reserve(5);
-    int c = 0;
+    this->swerve_->ReportTo(can_);
 
-    physical_report[0] = 0x00;
+    std::vector<uint8_t> pid_report(5);
+    pid_report.reserve(5);
     pid_report[0] = 0x01;
 
     int i = 0;
-    for (auto &motor : swerve_.motors) {
-      auto angle_power = motor->steer_.output.GetValue();
-      auto mag = motor->drive_.GetValue();
+    for (auto &motor : swerve_->swerve_.motors) {
       auto angle_error = motor->steer_.pid.CalculateError();
-
-      physical_report[1 + i * 2] = (uint8_t)std::min((int)(mag * 255.0f), 255);
-      physical_report[2 + i * 2] =
-          (uint8_t)std::min((int)(angle_power * 255.0f), 255);
 
       pid_report[1 + i] = (uint8_t)std::max(
           std::min((int)(angle_error * 127.0f + 128), 255), 0);
       i++;
     }
-    physical_report[7] = swerve_.robot_angle.GetValue() / 360.0 * 255;
+
     pid_report[4] = (uint8_t)std::min(
-        (int)(swerve_.angle.CalculateError() / 360 * 255.0f), 255);
+        (int)(swerve_->swerve_.angle.CalculateError() / 360 * 255.0f), 255);
 
-    if (0)
-      printf(
-          "(%4.1f %4.1f)"
-          "\e[31m|\e[m"
-          "(%4.1f %4.1f)"
-          "\e[31m|\e[m"
-          "(%4.1f %4.1f)"
-          "\e[41m \e[m"
-
-          "(%4.1f %4.1f)"
-          "\e[31m|\e[m"
-          "%4.1f"
-          "\e[41m \e[m"
-
-          "\n",
-          controller_status_.shot.GetValue()[0],
-          controller_status_.shot.GetValue()[1],
-
-          controller_status_.swerve.angle.GetValue().magnitude,
-          controller_status_.swerve.angle.GetValue().angle,
-
-          controller_status_.swerve.move.GetValue()[0],
-          controller_status_.swerve.move.GetValue()[1],
-          //
-          swerve_.move_ctrl.GetValue()[0], swerve_.move_ctrl.GetValue()[1],
-          swerve_.angle_ctrl.GetValue());
-    if (0)
-      printf(
-          "(%4.1f %4.1f) (%4.1f %4.1f) (%4.1f %4.1f), "
-          "(%4.1f %4.1f %4.1f) %4.1f"
-          "\n",
-          swerve_.motors[0]->steer_.output.GetValue(),
-          swerve_.motors[0]->drive_.GetValue(),
-          swerve_.motors[1]->steer_.output.GetValue(),
-          swerve_.motors[1]->drive_.GetValue(),
-          swerve_.motors[2]->steer_.output.GetValue(),
-          swerve_.motors[2]->drive_.GetValue(),
-
-          swerve_.motors[0]->steer_.pid.CalculateError(),
-          swerve_.motors[1]->steer_.pid.CalculateError(),
-          swerve_.motors[2]->steer_.pid.CalculateError(),
-          swerve_.angle.CalculateError()  //
-      );
-    if (0)
-      printf(
-          "(g:%4.1f f:%4.1f o:%4.1f) (g:%4.1f f:%4.1f o:%4.1f) (g:%4.1f "
-          "f:%4.1f o:%4.1f)"
-          "\n",
-          swerve_.motors[0]->steer_.goal.GetValue(),
-          swerve_.motors[0]->steer_.feedback.GetValue(),
-          swerve_.motors[0]->steer_.output.GetValue(),
-          swerve_.motors[1]->steer_.goal.GetValue(),
-          swerve_.motors[1]->steer_.feedback.GetValue(),
-          swerve_.motors[1]->steer_.output.GetValue(),
-          swerve_.motors[2]->steer_.goal.GetValue(),
-          swerve_.motors[2]->steer_.feedback.GetValue(),
-          swerve_.motors[2]->steer_.output.GetValue());
-    if (0) printf("\n");
-
-    auto ret = can_.Send(0xa0, physical_report);
+    auto ret = can_.Send(0xa0, pid_report);
     if (ret != 1) {
-      printf("ReportThread()/CanSend() failed (A)\n");
-    }
-    ret = can_.Send(0xa0, pid_report);
-    if (ret != 1) {
-      printf("ReportThread()/CanSend() failed (B)\n");
-    }
-  }
-
-  void AppThread() {
-    int i = 0;
-    while (1) {
-      this->DoReport();
-      if (i % 10 == 0) {
-        // this->driving_.Tick();
-        i = 0;
-      }
-      i++;
-
-      ThisThread::sleep_for(1ms);
+      printf("PID Report: Sending the report is failed.\n");
     }
   }
 
  public:
   App(Config &config)
-      : /* driving_can_bus_(new ikarashiCAN_mk2(config.driving_can.rx,
-                                             config.driving_can.tx, 0)), */
-        can_(config.can.id, config.can.rx, config.can.tx, config.can.freqency),
-        /* driving_(driving_can_bus_), */
+      : can_(config.can.id, config.can.rx, config.can.tx, config.can.freqency),
+        driving_(std::make_unique<DrivingCANBus>(new ikarashiCAN_mk2(
+            config.driving_can.rx, config.driving_can.tx, 0))),
         bldc{
             {config.swerve_esc_pins.swerve_pin_m0, 1000, 2000},
             {config.swerve_esc_pins.swerve_pin_m1, 1000, 2000},
@@ -289,61 +260,32 @@ class App {
         gyro_(config.i2c.sda, config.i2c.scl),
         controller_status_(config.controller_ids),
         value_store_(config.value_store_ids),
-        swerve_(config.swerve_config),
+        swerve_(std::make_unique<SwerveComponent>(config.swerve_config,
+                                                  controller_status_.swerve,
+                                                  value_store_.swerve)),
         emc(PC_1) {
     printf("CTor joined\n");
-    controller_status_.swerve.angle_pid.Link(swerve_.angle.gains);
+
+    printf("CTor joined - 1\n");
+    gyro_.Link(swerve_->swerve_.robot_angle);
     printf("CTor joined - 2\n");
-    controller_status_.swerve.motor_0_pid.Link(
-        swerve_.motors[0]->steer_.pid.gains);
+    swerve_->swerve_.motors[0]->drive_.Link(bldc[0]);
     printf("CTor joined - 3\n");
-    controller_status_.swerve.motor_1_pid.Link(
-        swerve_.motors[1]->steer_.pid.gains);
+    swerve_->swerve_.motors[0]->steer_.output.Link(
+        driving_->GetSwerveRot0().GetMotor());
     printf("CTor joined - 4\n");
-    controller_status_.swerve.motor_2_pid.Link(
-        swerve_.motors[2]->steer_.pid.gains);
+
+    swerve_->swerve_.motors[1]->drive_.Link(bldc[1]);
     printf("CTor joined - 5\n");
-    controller_status_.swerve.move.Link(swerve_.move_ctrl);
+    swerve_->swerve_.motors[1]->steer_.output.Link(
+        driving_->GetSwerveRot1().GetMotor());
     printf("CTor joined - 6\n");
-    controller_status_.swerve.angle.SetChangeCallback(
-        [this](robotics::AngleStick2D angle) {
-          swerve_.angle_ctrl.SetValue(angle.angle > 180 ? angle.angle - 360
-                                                        : angle.angle);
-        });
+
+    swerve_->swerve_.motors[2]->drive_.Link(bldc[2]);
     printf("CTor joined - 7\n");
-    gyro_.Link(swerve_.robot_angle);
+    swerve_->swerve_.motors[2]->steer_.output.Link(
+        driving_->GetSwerveRot2().GetMotor());
     printf("CTor joined - 8\n");
-
-    controller_status_.swerve.rotation_pid_enabled.SetChangeCallback(
-        [this](bool enabled) { swerve_.SetAnglePID(enabled); });
-    printf("CTor joined - 9\n");
-
-    // swerve fb link
-    value_store_.swerve.motor_0_encoder.Link(
-        swerve_.motors[0]->steer_.feedback);
-    printf("CTor joined - 10\n");
-    value_store_.swerve.motor_1_encoder.Link(
-        swerve_.motors[1]->steer_.feedback);
-    printf("CTor joined - 11\n");
-    value_store_.swerve.motor_2_encoder.Link(
-        swerve_.motors[2]->steer_.feedback);
-    printf("CTor joined - 12\n");
-
-    // swerve out link
-    swerve_.motors[0]->drive_.Link(bldc[0]);
-    printf("CTor joined - 13\n");
-    // swerve_.motors[0]->steer_.output.Link(driving_.GetSwerveRot0().GetMotor());
-    // printf("CTor joined - 14\n");
-
-    swerve_.motors[1]->drive_.Link(bldc[1]);
-    printf("CTor joined - 15\n");
-    // swerve_.motors[1]->steer_.output.Link(driving_.GetSwerveRot1().GetMotor());
-    // printf("CTor joined - 16\n");
-
-    swerve_.motors[2]->drive_.Link(bldc[2]);
-    printf("CTor joined - 17\n");
-    // swerve_.motors[2]->steer_.output.Link(driving_.GetSwerveRot2().GetMotor());
-    // printf("CTor joined - 18\n");
 
     {
       // auto &motor = this->driving_.GetElevation();
@@ -364,6 +306,7 @@ class App {
     printf("\e[1;32m|\e[m \e[32m2\e[m Initializing CAN\n");
     printf("\e[1;32m|\e[m \e[32m|\e[m \e[33m1\e[m Initializing CAN Driver\n");
     can_.Init();
+    this->driving_->Init();
     printf("\e[1;32m|\e[m \e[32m|\e[m \e[33m2\e[m Adding Handlers\n");
     can_.OnEvent(0x40, [this](std::vector<uint8_t> data) {  //
       std::stringstream ss;
@@ -400,9 +343,9 @@ class App {
     ThisThread::sleep_for(2s);
     printf("\e[1;32m|\e[m \e[32m5\e[m Setting swerve motors to origin point\n");
     if (0) {
-      auto &motor0 = swerve_.motors[0]->steer_;
-      auto &motor1 = swerve_.motors[1]->steer_;
-      auto &motor2 = swerve_.motors[2]->steer_;
+      auto &motor0 = swerve_->swerve_.motors[0]->steer_;
+      auto &motor1 = swerve_->swerve_.motors[1]->steer_;
+      auto &motor2 = swerve_->swerve_.motors[2]->steer_;
 
       motor0.goal.SetValue(0);
       motor1.goal.SetValue(0);
@@ -445,19 +388,51 @@ class App {
   }
 
   void Main() {
-    thr1 = new Thread(osPriorityNormal, 1024 * 4);
-    thr1->start(callback(this, &App::AppThread));
+    int i = 0;
     while (1) {
-      swerve_.Update(0.01f);
-      ThisThread::sleep_for(10ms);
+      this->DoReport();
+      swerve_->swerve_.Update(0.01f);
+
+      if (i % 10 == 0) {
+        this->driving_->Tick();
+        i = 0;
+      }
+      i++;
+
+      ThisThread::sleep_for(1ms);
     }
   }
 };
 
 using namespace robotics::component;
 
+int main_(int argc, char const *argv[]) {
+  ikarashiCAN_mk2 can{PB_5, PB_6, 0};
+  ikakoMDC mdc(3, -50, 50, 0.001, 0.0, 2.7, 0, 0.000015, 0.01);
+
+  return 0;
+}
+int main_dcbt(int argc, char const *argv[]) {
+  ikarashiCAN_mk2 can{PB_5, PB_6, 0};
+  DrivingCANBus bus(&can);
+
+  printf("main()\n");
+
+  while (1) {
+    bus.Tick();
+  }
+
+  return 0;
+}
+
 int main(int argc, char const *argv[]) {
   printf("main() started CAN_ID=%d\n", CAN_ID);
+
+  printf("Build information:\n");
+  printf("  - Build date: %s\n", __DATE__);
+  printf("  - Build time: %s\n", __TIME__);
+  printf("  - Analytics:\n");
+  printf("    - sizeof(App): %d\n", sizeof(App));
 
   App::Config config{
       .can =
