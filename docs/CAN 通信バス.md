@@ -30,10 +30,10 @@
 | 000 |   ID    | 0 byte  | button pressed    |
 | 001 |   ID    | 0 byte  | button released   |
 | 010 |   ID    | 1 byte  | Joystick X, Y     |
-| 011 |   ID    | 2 byte  | Encoder           |
+| 011 |   ID    | 2 byte  | Float value       |
 | 100 |   ID    | 0 byte  | Do Action (ID)    |
 | 101 |   ID    | 3 byte  | PID P, I, D Gains |
-| 110 |   ID    | 0 byte  | Soft EMC Stop     |
+| 110 |   ID    | 2 byte  |                   |
 | 111 |   ID    | 3 byte  | Extended cmd      |
 
 #### 拡張コマンド

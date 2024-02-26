@@ -16,6 +16,7 @@
 #include <esp_log.h>
 
 #include <logic_analyzer_ws.h>
+#include <esp_websocket_client.h>
 
 class CANDriver {
  public:
@@ -289,81 +290,9 @@ class KoroboCANDriver {
   void OnPong(PongListener cb) { pong_listeners_.emplace_back(cb); }
 };
 
-class WebSocketClient {
-  SemaphoreHandle_t robo_send_mutex_ = xSemaphoreCreateMutex();
-  httpd_handle_t hd;
-  int fd;
-
- public:
-  WebSocketClient(httpd_handle_t hd, int fd) : hd(hd), fd(fd) {}
-
-  bool operator==(const WebSocketClient& rhs) const {
-    return fd == rhs.fd && hd == rhs.hd;
-  }
-  bool operator==(httpd_req_t* rhs) const {
-    return fd == httpd_req_to_sockfd(rhs) && hd == rhs->handle;
-  }
-
-  static WebSocketClient FromRequest(httpd_req_t* req) {
-    auto hd = req->handle;
-    auto fd = httpd_req_to_sockfd(req);
-    return WebSocketClient(hd, fd);
-  }
-
-  esp_err_t SendFrame(httpd_ws_frame_t* frame) {
-    xSemaphoreTake(robo_send_mutex_, portMAX_DELAY);
-    auto ret = httpd_ws_send_frame_async(hd, fd, frame);
-    xSemaphoreGive(robo_send_mutex_);
-    return ret;
-  }
-
-  int GetFD() const { return fd; }
-};
-
-class WebSocketClients {
-  using Clients = std::vector<WebSocketClient>;
-  Clients clients;
-
- public:
-  void emplace_back(WebSocketClient client) {
-    if (std::find(clients.begin(), clients.end(), client) != clients.end()) {
-      ESP_LOGI("WebSocketClients", "Client %d already exists", client.GetFD());
-      return;
-    }
-    clients.emplace_back(client);
-  }
-
-  Clients::iterator begin() { return clients.begin(); }
-  Clients::iterator end() { return clients.end(); }
-
-  Clients::const_iterator begin() const { return clients.begin(); }
-  Clients::const_iterator end() const { return clients.end(); }
-
-  Clients::const_iterator cbegin() const { return clients.cbegin(); }
-  Clients::const_iterator cend() const { return clients.cend(); }
-
-  void Erase(httpd_req_t* req) {
-    ESP_LOGI("WebSocketClients", "Erasing %d/%p", httpd_req_to_sockfd(req),
-             req->handle);
-    clients.erase(std::remove_if(clients.begin(), clients.end(),
-                                 [req](const WebSocketClient& client) {
-                                   return client == req;
-                                 }),
-                  clients.end());
-  }
-
-  void Erase(Clients::iterator it) { clients.erase(it); }
-
-  void Add(httpd_req_t* req) {
-    ESP_LOGI("WebSocketClients", "Adding %d/%p", httpd_req_to_sockfd(req),
-             req->handle);
-    clients.emplace_back(WebSocketClient::FromRequest(req));
-  }
-};
-
 class App {
   KoroboCANDriver can_;
-  WebSocketClients robo_clients;
+  esp_websocket_client_handle_t ws_client = nullptr;
 
   stm32::ota::InitConfig& GetInitConfig() {
     using stm32::ota::InitConfig;
@@ -422,93 +351,23 @@ class App {
                  .id = 4,
                  .is_ap = false,
                  .is_static = false,
-                 .ssid = "syoch-windows",
-                 .password = "pw51pw51pw",
+                 .ssid = "Robonnct-2G4",
+                 .password = "robonnct_wlan",
                  .hostname = "esp32",
                  .ip = 0,
                  .subnet = 0,
                  .gateway = 0,
              }},
-        .active_network_profile_id = 3,
+        .active_network_profile_id = 4,
         .primary_stm32_id = 2};
 
     return init_config;
   }
-
-  static esp_err_t RoboCtrl(httpd_req_t* req) {
-    static const char* TAG = "RoboCtrl";
-
-    httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
-
-    auto& app = *static_cast<App*>(req->user_ctx);
-    auto& obj = app.robo_clients;
-
-    if (req->method == HTTP_GET) {
-      ESP_LOGI(TAG, "Handshake done, the new connection was opened");
-      obj.Add(req);
-      return ESP_OK;
-    }
-
-    httpd_ws_frame_t ws_pkt = {0};
-    ws_pkt.type = HTTPD_WS_TYPE_BINARY;
-
-    esp_err_t ret = httpd_ws_recv_frame(req, &ws_pkt, 0);
-    if (ret != ESP_OK) {
-      ESP_LOGE(TAG, "httpd_ws_recv_frame failed to get frame len with %d", ret);
-      return ret;
-    }
-
-    if (ws_pkt.type == httpd_ws_type_t::HTTPD_WS_TYPE_CLOSE) {
-      ESP_LOGI(TAG, "Connection closed");
-      obj.Erase(req);
-      return ESP_OK;
-    }
-    if (ws_pkt.type == httpd_ws_type_t::HTTPD_WS_TYPE_PING) {
-      ESP_LOGI(TAG, "Received ping");
-      ws_pkt.type = httpd_ws_type_t::HTTPD_WS_TYPE_PONG;
-      return ESP_OK;
-    }
-
-    if (ws_pkt.len == 0) {
-      ESP_LOGI(TAG, "Received empty frame");
-      return ESP_OK;
-    }
-
-    uint8_t* buf = new uint8_t[ws_pkt.len + 1];
-    if (buf == NULL) {
-      ESP_LOGE(TAG, "Failed to calloc memory for buf");
-      return ESP_ERR_NO_MEM;
-    }
-
-    ws_pkt.payload = buf;
-    ret = httpd_ws_recv_frame(req, &ws_pkt, ws_pkt.len);
-    if (ret != ESP_OK) {
-      ESP_LOGE(TAG, "httpd_ws_recv_frame failed with %d", ret);
-      delete[] buf;
-      return ret;
-    }
-
-    app.can_.SendControl(std::vector<uint8_t>(buf, buf + ws_pkt.len));
-
-    delete[] buf;
-
-    return ESP_OK;
-  }
-
   stm32::ota::OTAServer StartOTAServer() {
     auto& init_config = this->GetInitConfig();
     stm32::ota::OTAServer ota_server(idf::GPIONum(22), init_config);
 
     ota_server.OnHTTPDStart([this](httpd_handle_t server) {
-      httpd_uri_t uri = {
-          .uri = "/robo-ctrl",
-          .method = HTTP_GET,
-          .handler = App::RoboCtrl,
-          .user_ctx = this,
-          .is_websocket = true,
-      };
-      httpd_register_uri_handler(server, &uri);
-
       logic_analyzer_register_uri_handlers(server);
     });
 
@@ -519,15 +378,55 @@ class App {
     std::vector<uint8_t> payload = data;
     payload.insert(payload.begin(), id);
 
-    httpd_ws_frame_t frame = {
-        .type = HTTPD_WS_TYPE_BINARY,
-        .payload = payload.data(),
-        .len = payload.size(),
-    };
-
-    for (auto& client : this->robo_clients) {
-      client.SendFrame(&frame);
+    if (esp_websocket_client_is_connected(ws_client)) {
+      esp_websocket_client_send_bin(ws_client, (const char*)payload.data(),
+                                    payload.size(), portMAX_DELAY);
     }
+  }
+
+  void StartWSClient() {
+    const esp_websocket_client_config_t ws_cfg = {
+        .uri = "ws://192.168.0.7:8000/server",
+        .reconnect_timeout_ms = 1000,
+
+    };
+    ws_client = esp_websocket_client_init(&ws_cfg);
+
+    // esp_websocket_event_id_t::WEBSOCKET_EVENT_DATA
+
+    esp_websocket_register_events(
+        ws_client, WEBSOCKET_EVENT_ANY,
+        [](void* arg, esp_event_base_t base, int32_t id, void* data) {
+          esp_websocket_event_data_t* event = (esp_websocket_event_data_t*)data;
+          auto& app = *static_cast<App*>(arg);
+
+          switch (id) {
+            case WEBSOCKET_EVENT_CONNECTED:
+              ESP_LOGI("WS", "Connected");
+              break;
+            case WEBSOCKET_EVENT_DISCONNECTED:
+              ESP_LOGI("WS", "Disconnected");
+              break;
+            case WEBSOCKET_EVENT_DATA:
+              if (event->op_code == 2) {
+                app.can_.SendControl(std::vector<uint8_t>(
+                    event->data_ptr, event->data_ptr + event->data_len));
+              } else if (event->op_code == 9) {
+                esp_websocket_client_send_with_opcode(
+                    app.ws_client, WS_TRANSPORT_OPCODES_PONG,
+                    (const uint8_t*)event->data_ptr, event->data_len,
+                    portMAX_DELAY);
+              } else {
+                ESP_LOGI("WS", "Received unhandled opcode=%d", event->op_code);
+              }
+              break;
+            default:
+              break;
+          }
+        },
+        this);
+
+    esp_websocket_client_start(ws_client);
   }
 
  public:
@@ -575,6 +474,8 @@ class App {
         "LoadReporting", 4096, this, 1, NULL);
 
     stm32::ota::OTAServer ota_server = this->StartOTAServer();
+
+    this->StartWSClient();
 
     while (1) vTaskDelay(1);
   }

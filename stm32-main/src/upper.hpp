@@ -17,16 +17,16 @@ class Upper {
  public:
   AngledMotor elevation_motor;
   AngledMotor rotation_motor;
-  /* IncAngledMotor revolver; */
+  IncAngledMotor revolver;
   Node<float> shot;
 
  private:
-  /* float max_elevation_angle = 60.0;
+  float max_elevation_angle = 60.0;
   float shot_speed = 0.5;
-  bool in_shot = 0; */
+  bool in_shot = 0;
 
  public:
-  /* // 仰角
+  // 仰角
   void SetElevationAngle(float angle) {
     elevation_motor.goal.SetValue(
         angle > max_elevation_angle ? max_elevation_angle : angle);
@@ -59,6 +59,6 @@ class Upper {
   }
 
   // リロード
-  void RevolverChange() { revolver.AddAngle(360); } */
+  void RevolverChange() { revolver.AddAngle(360); }
 };
 }  // namespace korobo2023c

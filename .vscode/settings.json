@@ -11,5 +11,7 @@
     "chrono": "cpp",
     "random": "cpp",
     "cstdint": "cpp"
-  }
+  },
+  "python.analysis.typeCheckingMode": "basic",
+  "python.analysis.autoImportCompletions": true
 }

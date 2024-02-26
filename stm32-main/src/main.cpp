@@ -288,10 +288,34 @@ class App {
     printf("CTor joined - 8\n");
 
     {
-      // auto &motor = this->driving_.GetElevation();
-      // motor.GetEncoder() >> upper_.elevation_motor.feedback;
-      // upper_.elevation_motor.output >> motor.GetMotor();
+      auto &motor = this->driving_->GetElevation();
+      motor.GetEncoder() >> upper_.elevation_motor.feedback;
+      upper_.elevation_motor.output >> motor.GetMotor();
     }
+    {
+      auto &motor = this->driving_->GetHorizontal();
+      motor.GetEncoder() >> upper_.rotation_motor.feedback;
+      upper_.rotation_motor.output >> motor.GetMotor();
+    }
+    {
+      auto &motor = this->driving_->GetRevolver();
+      motor.GetEncoder() >> upper_.revolver.encoder;
+      upper_.revolver.output >> motor.GetMotor();
+    }
+    upper_.shot.SetChangeCallback([this](float speed) {
+      this->driving_->GetShotL().GetMotor().SetValue(speed);
+      this->driving_->GetShotR().GetMotor().SetValue(-speed);
+    });
+
+    this->controller_status_.shot_speed.SetChangeCallback(
+        [this](float speed) { upper_.SetShotSpeed(speed); });
+    this->controller_status_.max_elevation.SetChangeCallback(
+        [this](float angle) { upper_.SetMaxElevationAngle(angle); });
+    this->controller_status_.shot.SetChangeCallback(
+        [this](robotics::JoyStick2D x) {
+          upper_.SetRotationAngle(x[0]);
+          upper_.SetElevationAngle(x[1]);
+        });
   }
 
   void Init() {
@@ -391,7 +415,7 @@ class App {
     int i = 0;
     while (1) {
       this->DoReport();
-      swerve_->swerve_.Update(0.01f);
+      swerve_->swerve_.Update(0.001f);
 
       if (i % 10 == 0) {
         this->driving_->Tick();
@@ -454,6 +478,8 @@ int main(int argc, char const *argv[]) {
           },
       .swerve_esc_pins =
           {
+              // PA_9
+              // PB_10
               .swerve_pin_m0 = PB_13,
               .swerve_pin_m1 = PB_14,
               .swerve_pin_m2 = PB_15,
@@ -468,7 +494,10 @@ int main(int argc, char const *argv[]) {
                                  .motor_1_pid_id = 1,
                                  .motor_2_pid_id = 2,
                                  .angle_pid_id = 3,
-                             }},
+                             },
+                         .shot_joystick_id = 2,
+                         .shot_speed_id = 0,
+                         .max_elevation_id = 1},
       .value_store_ids =
           {.swerve =
                (controller::swerve::SwerveValueStore<float>::Config){

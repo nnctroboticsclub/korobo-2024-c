@@ -51,6 +51,7 @@ class PseudoAbsEncoder {
  private:
   int pulses_per_rotation = 200;
 
+  int rots = 0;
   int current_pulses = 0;
   bool is_abs_ready = false;
 
@@ -86,6 +87,7 @@ class PseudoAbsEncoder {
     index_.rise([this]() {
       current_pulses = 0;
       is_abs_ready = true;
+      rots++;
     });
 
     printf("PseudoAbsEncoder(%d, %d, %d) done\n", A, B, index);
@@ -96,6 +98,7 @@ class PseudoAbsEncoder {
 
   double GetAngle() { return 360 * current_pulses / pulses_per_rotation; }
   int GetPulses() { return current_pulses; }
+  int GetRots() { return rots; }
 
   bool IsAbsReady() { return is_abs_ready; }
 };
@@ -115,7 +118,6 @@ class DistributedPseudoAbsEncoder : public PseudoAbsEncoder {
     if (!attached_can_.enabled) return;
 
     uint16_t value = (int16_t)(this->GetAngle() / 360.0f * 0x7FFF);
-    printf("Sending 0x%04x as Enc%d\n", value, this->attached_can_.dev_id);
 
     std::vector<uint8_t> payload;
     payload.push_back(0x60 | attached_can_.dev_id);
@@ -175,18 +177,20 @@ class App {
   Thread sender_thread_;
 
   void MonitorThread() {
-    return;
     char buf[80];
     while (1) {
       snprintf(buf, 80,
-               "encoders: %d(%4.1lf)[%d] %d(%4.1lf)[%d] %d(%4.1lf)[%d] "
-               "%d(%4.1lf)[%d\n",
+               "encoders: "
+               "%d(%4.1lf)[%d:%d] %d(%4.1lf)[%d:%d] %d(%4.1lf)[%d:%d] "
+               "%d(%4.1lf)[%d:%d]\n",
                encoder_sm0_.GetPulses(), encoder_sm0_.GetAngle(),
-               encoder_sm0_.IsAbsReady(), encoder_sm1_.GetPulses(),
-               encoder_sm1_.GetAngle(), encoder_sm1_.IsAbsReady(),
+               encoder_sm0_.IsAbsReady(), encoder_sm0_.GetRots(),
+               encoder_sm1_.GetPulses(), encoder_sm1_.GetAngle(),
+               encoder_sm1_.IsAbsReady(), encoder_sm1_.GetRots(),
                encoder_sm2_.GetPulses(), encoder_sm2_.GetAngle(),
-               encoder_sm2_.IsAbsReady(), encoder_dummy_.GetPulses(),
-               encoder_dummy_.GetAngle(), encoder_dummy_.IsAbsReady());
+               encoder_sm2_.IsAbsReady(), encoder_sm2_.GetRots(),
+               encoder_dummy_.GetPulses(), encoder_dummy_.GetAngle(),
+               encoder_dummy_.IsAbsReady(), encoder_dummy_.GetRots());
       AtomicPrint(buf);
       wait_ns(500E6);
     }

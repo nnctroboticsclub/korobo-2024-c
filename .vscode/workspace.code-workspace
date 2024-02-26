@@ -88,7 +88,8 @@
 			"typeinfo": "cpp",
 			"variant": "cpp",
 			"protocol_examples_common.h": "c",
-			"queue": "cpp"
+			"queue": "cpp",
+			"mstd_iterator": "cpp"
 		}
 	}
 }

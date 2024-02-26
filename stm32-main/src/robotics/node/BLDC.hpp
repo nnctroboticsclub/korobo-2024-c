@@ -19,8 +19,13 @@ class BLDC : public Motor<float> {
       pwmout_.pulsewidth_us(min_pulsewidth_);
     }
 
+    if (speed > 1) {
+      // multiply 0.95 for safe
+      pwmout_.pulsewidth_us(max_pulsewidth_ * 0.95);
+    }
+
     pwmout_.pulsewidth_us(min_pulsewidth_ +
-                          (max_pulsewidth_ - min_pulsewidth_) * speed);
+                          (max_pulsewidth_ - min_pulsewidth_) * (speed * 0.5));
   }
 
  public:
