@@ -19,14 +19,12 @@ class IPReporter:
     def send_ip(self):
         lst = IPReporter.get_ip_address_list()
         payload = IPReporter.pack_ip_address_list(lst)
-        print(f"Sending {payload=}")
 
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 2)
-        sock.sendto(payload, ("239.255.255.250", 38000))
-        sock.close()
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+            # sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            # sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 2)
+            sock.sendto(payload, ("255.255.255.255", 38000))
 
     @staticmethod
     def pack_ip_address_list(lst: List[str]):

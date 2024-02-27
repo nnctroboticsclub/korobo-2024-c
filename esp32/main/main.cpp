@@ -290,9 +290,93 @@ class KoroboCANDriver {
   void OnPong(PongListener cb) { pong_listeners_.emplace_back(cb); }
 };
 
+class AppInitializer {
+  int sock;
+
+ public:
+  AppInitializer() { sock = socket(PF_INET, SOCK_DGRAM, IPPROTO_IP); }
+
+  int BindSocket() {
+    sockaddr_in addr{
+        .sin_family = PF_INET,
+        .sin_port = htons(38000),
+        .sin_addr = {.s_addr = htonl(INADDR_ANY)},
+    };
+    return bind(this->sock, (sockaddr*)&addr, sizeof(addr));
+  }
+
+  std::vector<std::string> RecvPacket() {
+    char buf[1024];
+    auto bytes = recvfrom(this->sock, buf, sizeof(buf), 0, NULL, NULL);
+    if (bytes < 0) {
+      printf("recvfrom failed (when receiving 'ip_length')\n");
+      return {};
+    }
+    char* ptr = buf;
+
+    uint32_t ip_count = ptr[0] << 24 | ptr[1] << 16 | ptr[2] << 8 | ptr[3];
+      ESP_LOGI("AppInitializer", "ip_count = 0x%08lxa", ip_count);
+    ptr += 4;
+
+    std::vector<std::string> ips;
+    for (uint32_t i = 0; i < ip_count; i++) {
+      uint32_t ip_length = ptr[0] << 24 | ptr[1] << 16 | ptr[2] << 8 | ptr[3];
+      ESP_LOGI("AppInitializer", "ip_length = 0x%08lxa", ip_length);
+      ptr += 4;
+
+      std::string ip;
+      ip.resize(ip_length);
+      std::copy(ptr, ptr + ip_length, ip.begin());
+      ESP_LOGI("AppInitializer", "ip = %s", ip.c_str());
+      ptr += ip_length;
+
+      ips.push_back(ip);
+    }
+
+    return ips;
+  }
+
+  std::string Test1() {
+    auto ips = this->RecvPacket();
+
+    for (auto ip : ips) {
+      bool test_successful = false;
+
+      printf("Testing TCP connectivility test: ip = %s\n", ip.c_str());
+
+      int sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
+      sockaddr_in addr{
+          .sin_family = PF_INET,
+          .sin_port = htons(8080),
+          .sin_addr = {.s_addr = inet_addr(ip.c_str())},
+      };
+
+      auto err = connect(sock, (sockaddr*)&addr, sizeof(addr));
+      if (err < 0) {
+        printf("Failed to connect to %s\n", ip.c_str());
+      } else {
+        printf("Connected to %s\n", ip.c_str());
+        test_successful = true;
+      }
+
+      close(sock);
+
+      printf("\n");
+
+      if (test_successful) {
+        printf("Test successful, using %s as the server\n", ip.c_str());
+        return ip;
+      }
+    }
+
+    return "";
+  }
+};
+
 class App {
   KoroboCANDriver can_;
   esp_websocket_client_handle_t ws_client = nullptr;
+  std::string server_ip;
 
   stm32::ota::InitConfig& GetInitConfig() {
     using stm32::ota::InitConfig;
@@ -358,7 +442,7 @@ class App {
                  .subnet = 0,
                  .gateway = 0,
              }},
-        .active_network_profile_id = 4,
+        .active_network_profile_id = 3,
         .primary_stm32_id = 2};
 
     return init_config;
@@ -369,6 +453,13 @@ class App {
 
     ota_server.OnHTTPDStart([this](httpd_handle_t server) {
       logic_analyzer_register_uri_handlers(server);
+
+      ESP_LOGI("Manager", "<== App Initializer");
+      AppInitializer app_initializer;
+      app_initializer.BindSocket();
+      this->server_ip = app_initializer.Test1();
+
+      this->StartWSClient();
     });
 
     return ota_server;
@@ -385,14 +476,17 @@ class App {
   }
 
   void StartWSClient() {
-    const esp_websocket_client_config_t ws_cfg = {
-        .uri = "ws://192.168.0.7:8000/server",
-        .reconnect_timeout_ms = 1000,
+    static char buffer[1024];
+    snprintf(buffer, sizeof(buffer), "ws://%s:8000/server", server_ip.c_str());
 
+    ESP_LOGI("WS", "Connecting to %s", buffer);
+
+    const esp_websocket_client_config_t ws_cfg = {
+        .uri = buffer,
+        .reconnect_timeout_ms = 1000,
+        .network_timeout_ms = 1000,
     };
     ws_client = esp_websocket_client_init(&ws_cfg);
-
-    // esp_websocket_event_id_t::WEBSOCKET_EVENT_DATA
 
     esp_websocket_register_events(
         ws_client, WEBSOCKET_EVENT_ANY,
@@ -432,10 +526,10 @@ class App {
  public:
   App() : can_() {}
 
-  void Main() {
-    can_.Init(GPIO_NUM_15, GPIO_NUM_4);
-
+  void Init() {
     ESP_LOGI("Manager", "Init");
+    ESP_LOGI("Manager", "- CAN");
+    can_.Init(GPIO_NUM_15, GPIO_NUM_4);
 
     can_.OnPong(
         [this](uint8_t device) { this->SendCANtoRoboWs(0xff, {device}); });
@@ -445,7 +539,9 @@ class App {
       std::vector<uint8_t> payload(data.begin() + 1, data.end());
       this->SendCANtoRoboWs(msg_id, payload);
     });
+  }
 
+  void Main() {
     xTaskCreate(
         [](void* args) {
           auto& app = *static_cast<App*>(args);
@@ -475,13 +571,12 @@ class App {
 
     stm32::ota::OTAServer ota_server = this->StartOTAServer();
 
-    this->StartWSClient();
-
     while (1) vTaskDelay(1);
   }
 };
 
 extern "C" void app_main(void) {
   App app;
+  app.Init();
   app.Main();
 }

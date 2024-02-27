@@ -40,6 +40,9 @@ i:
 im:
 	cd stm32-main; mbed deploy
 
+dns:
+	sudo bash -c 'echo nameserver 8.8.8.8 > /etc/resolv.conf'
+
 d:
 	sudo umount $(MNT1)
 	sudo umount $(MNT2)
