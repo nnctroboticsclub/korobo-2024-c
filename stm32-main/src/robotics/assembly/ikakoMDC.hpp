@@ -11,13 +11,7 @@ class ikakoMDCMotor : public Motor<T> {
 
   void SetSpeed(T speed) override {
     if (!mdc_) return;
-    if (speed > 0) {
-      mdc_->set_speed(speed * mdc_->max_speed);
-    } else if (speed < 0) {
-      mdc_->set_speed(speed * mdc_->min_speed);
-    } else {
-      mdc_->set_speed(0);
-    }
+    mdc_->set_speed(speed * 100);
   }
 
  public:
