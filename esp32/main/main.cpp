@@ -315,7 +315,7 @@ class AppInitializer {
     char* ptr = buf;
 
     uint32_t ip_count = ptr[0] << 24 | ptr[1] << 16 | ptr[2] << 8 | ptr[3];
-      ESP_LOGI("AppInitializer", "ip_count = 0x%08lxa", ip_count);
+    ESP_LOGI("AppInitializer", "ip_count = 0x%08lxa", ip_count);
     ptr += 4;
 
     std::vector<std::string> ips;
@@ -374,9 +374,12 @@ class AppInitializer {
 };
 
 class App {
+  enum WsClientState { kNotInitialized, kInitialized, kLostConnection };
+
   KoroboCANDriver can_;
   esp_websocket_client_handle_t ws_client = nullptr;
   std::string server_ip;
+  WsClientState ws_client_state = WsClientState::kNotInitialized;
 
   stm32::ota::InitConfig& GetInitConfig() {
     using stm32::ota::InitConfig;
@@ -466,10 +469,16 @@ class App {
   }
 
   void SendCANtoRoboWs(uint16_t id, std::vector<uint8_t> const& data) {
+    static std::vector<char> buffer;
+
     std::vector<uint8_t> payload = data;
     payload.insert(payload.begin(), id);
 
+    buffer.insert(buffer.end(), payload.begin(), payload.end());
+
     if (esp_websocket_client_is_connected(ws_client)) {
+      ESP_LOG_BUFFER_HEXDUMP("WS -->", payload.data(), payload.size(),
+                             ESP_LOG_INFO);
       esp_websocket_client_send_bin(ws_client, (const char*)payload.data(),
                                     payload.size(), portMAX_DELAY);
     }
@@ -483,6 +492,8 @@ class App {
 
     const esp_websocket_client_config_t ws_cfg = {
         .uri = buffer,
+        .task_prio = 15,
+        .buffer_size = 0,
         .reconnect_timeout_ms = 1000,
         .network_timeout_ms = 1000,
     };
@@ -497,24 +508,33 @@ class App {
           switch (id) {
             case WEBSOCKET_EVENT_CONNECTED:
               ESP_LOGI("WS", "Connected");
+              app.ws_client_state = WsClientState::kInitialized;
               break;
             case WEBSOCKET_EVENT_DISCONNECTED:
               ESP_LOGI("WS", "Disconnected");
+              app.ws_client_state = WsClientState::kLostConnection;
               break;
             case WEBSOCKET_EVENT_DATA:
               if (event->op_code == 2) {
-                app.can_.SendControl(std::vector<uint8_t>(
-                    event->data_ptr, event->data_ptr + event->data_len));
+                ESP_LOG_BUFFER_HEXDUMP("WS <--", event->data_ptr,
+                                       event->data_len, ESP_LOG_INFO);
+                if (0)
+                  app.can_.SendControl(std::vector<uint8_t>(
+                      event->data_ptr, event->data_ptr + event->data_len));
               } else if (event->op_code == 9) {
                 esp_websocket_client_send_with_opcode(
                     app.ws_client, WS_TRANSPORT_OPCODES_PONG,
                     (const uint8_t*)event->data_ptr, event->data_len,
                     portMAX_DELAY);
+              } else if (event->op_code == WS_TRANSPORT_OPCODES_CLOSE) {
+                ESP_LOGI("WS", "Closed");
+                app.ws_client_state = WsClientState::kLostConnection;
               } else {
-                ESP_LOGI("WS", "Received unhandled opcode=%d", event->op_code);
+                ESP_LOGI("WS", "Received unhandled opcode=%hd", event->op_code);
               }
               break;
             default:
+              ESP_LOGI("WS", "Unhandled event id=%ld", id);
               break;
           }
         },
@@ -555,15 +575,15 @@ class App {
     xTaskCreate(
         [](void* args) {
           auto& app = *static_cast<App*>(args);
+          int i = 0;
           while (1) {
             auto load = app.can_.GetBusLoad();
             auto load_int = static_cast<uint32_t>(load * 0xffffffff);
-            app.SendCANtoRoboWs(0xfe, {
-                                          static_cast<uint8_t>(load_int >> 24),
-                                          static_cast<uint8_t>(load_int >> 16),
-                                          static_cast<uint8_t>(load_int >> 8),
-                                          static_cast<uint8_t>(load_int),
-                                      });
+            app.SendCANtoRoboWs(0xfe, {static_cast<uint8_t>(load_int >> 24),
+                                       static_cast<uint8_t>(load_int >> 16),
+                                       static_cast<uint8_t>(load_int >> 8),
+                                       static_cast<uint8_t>(load_int)});
+            i++;
             vTaskDelay(pdMS_TO_TICKS(500));
           }
         },
@@ -571,7 +591,13 @@ class App {
 
     stm32::ota::OTAServer ota_server = this->StartOTAServer();
 
-    while (1) vTaskDelay(1);
+    while (1) {
+      if (ws_client_state == WsClientState::kLostConnection) {
+        StartWSClient();
+      }
+
+      vTaskDelay(pdMS_TO_TICKS(100));
+    }
   }
 };
 
