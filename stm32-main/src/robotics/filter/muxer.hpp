@@ -12,7 +12,7 @@ struct Muxer {
   Muxer() : selected_(0) {}
 
   void Select(size_t index) {
-    if (index < 0 || index >= inputs_.size()) {
+    if (index >= inputs_.size()) {
       return;
     }
     selected_ = index;
