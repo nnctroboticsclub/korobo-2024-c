@@ -34,24 +34,27 @@ class MDC {
 
  public:
   MDC(ikarashiCAN_mk2 *can, int mdc_id)
-      : motors_{ikakoMDC(4 * mdc_id + 1, -50, 50, 0.001, 0.0, 2.7, 0, 0.000015,
-                         0.01),
-                ikakoMDC(4 * mdc_id + 2, -50, 50, 0.001, 0.0, 2.7, 0, 0.000015,
-                         0.01),
-                ikakoMDC(4 * mdc_id + 3, -50, 50, 0.001, 0.0, 2.7, 0, 0.000015,
-                         0.01),
-                ikakoMDC(4 * mdc_id + 4, -50, 50, 0.001, 0.0, 2.7, 0, 0.000015,
-                         0.01)},
+      : motors_{ikakoMDC(4 * (mdc_id - 1) + 1, -50, 50, 0.001, 0.0, 2.7, 0,
+                         0.000015, 0.01),
+                ikakoMDC(4 * (mdc_id - 1) + 2, -50, 50, 0.001, 0.0, 2.7, 0,
+                         0.000015, 0.01),
+                ikakoMDC(4 * (mdc_id - 1) + 3, -50, 50, 0.001, 0.0, 2.7, 0,
+                         0.000015, 0.01),
+                ikakoMDC(4 * (mdc_id - 1) + 4, -50, 50, 0.001, 0.0, 2.7, 0,
+                         0.000015, 0.01)},
         sender_(motors_, 4, can, mdc_id),
         motor_nodes_{motors_[0], motors_[1], motors_[2], motors_[3]},
         linked_ican_(can) {}
 
-  int Tick() {
+  void Tick() {
     if (sender_.read_enc() && linked_ican_->get_read_flag()) {
       for (size_t i = 0; i < 4; i++) {
         motor_nodes_[i].Update();
       }
     }
+  }
+
+  int Send() {
     auto ret = sender_.send();
     if (ret == 0) {
       printf("MDC: Sending the command is failed.\n");
@@ -66,20 +69,21 @@ class MDC {
 
 class DrivingCANBus {
   ikarashiCAN_mk2 *ican_;
+
+ public:
   MDC mdc0_;
   MDC mdc1_;
   MDC mdc2_;
 
- public:
   DrivingCANBus(ikarashiCAN_mk2 *ican)
-      : ican_(ican), mdc0_(ican, 0), mdc1_(ican, 1), mdc2_(ican, 2) {}
+      : ican_(ican), mdc0_(ican, 1), mdc1_(ican, 2), mdc2_(ican, 3) {}
 
   void Init() { ican_->read_start(); }
 
   void Tick() {
     mdc0_.Tick();
-    mdc1_.Tick();
-    mdc2_.Tick();
+    // mdc1_.Tick();
+    // mdc2_.Tick();
   }
 
   robotics::assembly::MotorWithEncoder<float> &GetSwerveRot0() {
@@ -124,7 +128,8 @@ struct SwerveComponent {
     ctrl_.motor_1_pid.Link(swerve_.motors[1]->steer_.pid.gains);
     ctrl_.motor_2_pid.Link(swerve_.motors[2]->steer_.pid.gains);
     ctrl_.move.Link(swerve_.move_ctrl);
-    ctrl_.angle.SetChangeCallback([this](robotics::AngleStick2D angle) {
+
+    ctrl_.angle_out.SetChangeCallback([this](robotics::AngleStick2D angle) {
       swerve_.angle_ctrl.SetValue(angle.angle > 180 ? angle.angle - 360
                                                     : angle.angle);
     });
@@ -247,6 +252,23 @@ class App {
     }
   }
 
+  void MainThread() {
+    int i = 0;
+    while (1) {
+      this->driving_->mdc0_.Send();
+
+      swerve_->swerve_.Update(0.01f);
+      if (i % 10 == 0) {  // interval: 100ms = 0.100s
+        this->DoReport();
+
+        i = 0;
+      }
+      i++;
+
+      ThisThread::sleep_for(1ms);
+    }
+  }
+
  public:
   App(Config &config)
       : can_(config.can.id, config.can.rx, config.can.tx, config.can.freqency),
@@ -258,12 +280,12 @@ class App {
             {config.swerve_esc_pins.swerve_pin_m2, 1000, 2000},
         },
         gyro_(config.i2c.sda, config.i2c.scl),
+        emc(PC_1),
         controller_status_(config.controller_ids),
         value_store_(config.value_store_ids),
         swerve_(std::make_unique<SwerveComponent>(config.swerve_config,
                                                   controller_status_.swerve,
-                                                  value_store_.swerve)),
-        emc(PC_1) {
+                                                  value_store_.swerve)) {
     printf("CTor joined\n");
 
     printf("CTor joined - 1\n");
@@ -320,14 +342,17 @@ class App {
 
   void Init() {
     printf("\e[1;32m-\e[m Init\n");
-    printf("\e[1;32m|\e[m \e[32m1\e[m Initializing Gyro\n");
+    printf("\e[1;32m|\e[m \e[32m1\e[m Starting Main Thread\n");
+    this->thr1 = new Thread(osPriorityNormal, 1024 * 4);
+    this->thr1->start(callback(this, &App::MainThread));
+    printf("\e[1;32m|\e[m \e[32m2\e[m Initializing Gyro\n");
     auto gyro_init_status = gyro_.Init();
     if (!gyro_init_status) {
       printf(
-          "\e[1;32m|\e[m \e[32m1\e[m \e[1;31m=> !!!\e[m BNO055 Detection "
+          "\e[1;32m|\e[m \e[32m2\e[m \e[1;31m=> !!!\e[m BNO055 Detection "
           "failed.\e[m\n");
     }
-    printf("\e[1;32m|\e[m \e[32m2\e[m Initializing CAN\n");
+    printf("\e[1;32m|\e[m \e[32m3\e[m Initializing CAN\n");
     printf("\e[1;32m|\e[m \e[32m|\e[m \e[33m1\e[m Initializing CAN Driver\n");
     can_.Init();
     this->driving_->Init();
@@ -344,15 +369,15 @@ class App {
       value_store_.Parse(data);
     });
 
-    printf("\e[1;32m|\e[m \e[32m3\e[m Setting Initial value\n");
+    printf("\e[1;32m|\e[m \e[32m4\e[m Setting Initial value\n");
     printf("\e[1;32m|\e[m \e[32m|\e[m \e[33m1\e[m Set Dummy value\n");
-    controller_status_.swerve.angle.SetValue({0.1, 0.1});
+    controller_status_.swerve.angle_out.SetValue({0.1, 0.1});
     controller_status_.swerve.move.SetValue({0.1, 0.1});
     ThisThread::sleep_for(10ms);
     printf("\e[1;32m|\e[m \e[32m|\e[m \e[33m2\e[m Reset Initial value\n");
-    controller_status_.swerve.angle.SetValue({0, 0});
+    controller_status_.swerve.angle_out.SetValue({0, 0});
     controller_status_.swerve.move.SetValue({0, 0});
-    printf("\e[1;32m|\e[m \e[32m4\e[m Initializing ESC\n");
+    printf("\e[1;32m|\e[m \e[32m5\e[m Initializing ESC\n");
     emc = 1;
     can_.SetStatus(DistributedCAN::Statuses::kInitializingESC);
     printf("\e[1;32m|\e[m \e[32m|\e[m \e[33m1\e[m Pulsing Max Pulsewidth\n");
@@ -365,85 +390,107 @@ class App {
     bldc[1].Init1();
     bldc[2].Init1();
     ThisThread::sleep_for(2s);
-    printf("\e[1;32m|\e[m \e[32m5\e[m Setting swerve motors to origin point\n");
-    if (0) {
-      auto &motor0 = swerve_->swerve_.motors[0]->steer_;
-      auto &motor1 = swerve_->swerve_.motors[1]->steer_;
-      auto &motor2 = swerve_->swerve_.motors[2]->steer_;
+    printf("\e[1;32m|\e[m \e[32m6\e[m Setting swerve motors to origin point\n");
+    auto &motor0 = swerve_->swerve_.motors[0]->steer_;
+    auto &motor1 = swerve_->swerve_.motors[1]->steer_;
+    auto &motor2 = swerve_->swerve_.motors[2]->steer_;
 
-      motor0.goal.SetValue(0);
-      motor1.goal.SetValue(0);
-      motor2.goal.SetValue(0);
+    motor0.goal.SetValue(0);
+    motor1.goal.SetValue(0);
+    motor2.goal.SetValue(0);
 
-      bool motor_0_initialized = false;
-      bool motor_1_initialized = false;
-      bool motor_2_initialized = false;
+    bool motor_0_initialized = false;
+    bool motor_1_initialized = false;
+    bool motor_2_initialized = false;
 
-      motor0.output.SetValue(0.4);
-      motor1.output.SetValue(0.4);
-      motor2.output.SetValue(0.4);
-      while (1) {
-        if (!motor_0_initialized && motor0.feedback.GetValue() != 0) {
-          ThisThread::sleep_for(2s);
-          printf("\e[1;32m|\e[m \e[32m|\e[m \e[33m-\e[m Motor 0 is ready\n");
-          motor_0_initialized = true;
-        }
-        if (!motor_1_initialized && motor1.feedback.GetValue() != 0) {
-          printf("\e[1;32m|\e[m \e[32m|\e[m \e[33m-\e[m Motor 1 is ready\n");
-          motor_1_initialized = true;
-        }
-        if (!motor_2_initialized && motor2.feedback.GetValue() != 0) {
-          printf("\e[1;32m|\e[m \e[32m|\e[m \e[33m-\e[m Motor 2 is ready\n");
-          motor_2_initialized = true;
-        }
-
-        if (motor_0_initialized) motor0.Update(0.01f);
-        if (motor_1_initialized) motor1.Update(0.01f);
-        if (motor_2_initialized) motor2.Update(0.01f);
-
-        ThisThread::sleep_for(10ms);
-
-        break;  // THIS IS FOR DEBUG
+    motor0.output.SetValue(0.4);
+    motor1.output.SetValue(0.4);
+    motor2.output.SetValue(0.4);
+    while (1) {
+      if (!motor_0_initialized && motor0.feedback.GetValue() != 0) {
+        ThisThread::sleep_for(2s);
+        printf("\e[1;32m|\e[m \e[32m|\e[m \e[33m-\e[m Motor 0 is ready\n");
+        motor_0_initialized = true;
       }
+      if (!motor_1_initialized && motor1.feedback.GetValue() != 0) {
+        printf("\e[1;32m|\e[m \e[32m|\e[m \e[33m-\e[m Motor 1 is ready\n");
+        motor_1_initialized = true;
+      }
+      if (!motor_2_initialized && motor2.feedback.GetValue() != 0) {
+        printf("\e[1;32m|\e[m \e[32m|\e[m \e[33m-\e[m Motor 2 is ready\n");
+        motor_2_initialized = true;
+      }
+
+      if (motor_0_initialized) motor0.Update(0.01f);
+      if (motor_1_initialized) motor1.Update(0.01f);
+      if (motor_2_initialized) motor2.Update(0.01f);
+
+      ThisThread::sleep_for(10ms);
+
+      break;  // THIS IS FOR DEBUG
     }
+
     printf("\e[1;32m+\e[m   \e[33m+\e[m\n");
 
     can_.SetStatus(DistributedCAN::Statuses::kReady);
-  }
-
-  void Main() {
-    int i = 0;
-    while (1) {
-      this->DoReport();
-      swerve_->swerve_.Update(0.001f);
-
-      if (i % 10 == 0) {
-        this->driving_->Tick();
-        i = 0;
-      }
-      i++;
-
-      ThisThread::sleep_for(1ms);
-    }
   }
 };
 
 using namespace robotics::component;
 
-int main_(int argc, char const *argv[]) {
+int main_sm(int argc, char const *argv[]) {
   ikarashiCAN_mk2 can{PB_5, PB_6, 0};
-  ikakoMDC mdc(3, -50, 50, 0.001, 0.0, 2.7, 0, 0.000015, 0.01);
+  ikakoMDC mtr[] = {
+      ikakoMDC{1, -200, 200, 0.001, 0.0, 2.7, 0, 0.000015, 0.01},
+      ikakoMDC{2, -200, 200, 0.001, 0.0, 2.7, 0, 0.000015, 0.01},
+      ikakoMDC{3, -200, 200, 0.001, 0.0, 2.7, 0, 0.000015, 0.01},
+      ikakoMDC{4, -200, 200, 0.001, 0.0, 2.7, 0, 0.000015, 0.01},
+  };
+  ikakoMDC_sender sender{mtr, 4, &can, 1};
+
+  mtr[0].set_speed(-100);
+  mtr[1].set_speed(-50);
+  mtr[2].set_speed(50);
+  mtr[3].set_speed(100);
+
+  while (1) {
+    sender.send();
+
+    ThisThread::sleep_for(10ms);
+  }
+  return 0;
+}
+
+int main_im(int argc, char const *argv[]) {
+  ikarashiCAN_mk2 can{PB_5, PB_6, 0};
+  MDC mdc{&can, 0};
+
+  mdc.GetNode(0).GetMotor().SetValue(-1);
+  mdc.GetNode(1).GetMotor().SetValue(-0.5);
+  mdc.GetNode(2).GetMotor().SetValue(0.5);
+  mdc.GetNode(3).GetMotor().SetValue(1);
+  while (1) {
+    mdc.Tick();
+    ThisThread::sleep_for(10ms);
+  }
 
   return 0;
 }
-int main_dcbt(int argc, char const *argv[]) {
+int main_(int argc, char const *argv[]) {
   ikarashiCAN_mk2 can{PB_5, PB_6, 0};
-  DrivingCANBus bus(&can);
+  DrivingCANBus *bus = new DrivingCANBus(&can);
+  int i;
 
-  printf("main()\n");
+  bus->Init();
 
+  bus->GetSwerveRot0().GetMotor().SetValue(-1);
   while (1) {
-    bus.Tick();
+    printf("%6.4f\n", (i % 200) / 200.0f * 2 - 1);
+    bus->GetSwerveRot0().GetMotor().SetValue((i % 200) / 200.0f * 2 - 1);
+
+    bus->mdc0_.Send();
+    i++;
+    ThisThread::sleep_for(5ms);
   }
 
   return 0;
@@ -488,7 +535,8 @@ int main(int argc, char const *argv[]) {
       .controller_ids = {.swerve =
                              (controller::swerve::SwerveController::Config){
                                  .joystick_id = 0,
-                                 .angle_joystick_id = 1,
+                                 .rot_right_45_id = 0,
+                                 .rot_left_45_id = 1,
                                  .rotation_pid_enabled_id = 1,
                                  .motor_0_pid_id = 0,
                                  .motor_1_pid_id = 1,
@@ -510,9 +558,11 @@ int main(int argc, char const *argv[]) {
   App app(config);
   printf("Init\n");
   app.Init();
-  printf("main\n");
-  app.Main();
   printf("end-\n");
+
+  while (1) {
+    ThisThread::sleep_for(100s);
+  }
 
   return 0;
 }
