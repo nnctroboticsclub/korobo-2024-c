@@ -347,7 +347,7 @@ class AppInitializer {
       int sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
       sockaddr_in addr{
           .sin_family = PF_INET,
-          .sin_port = htons(8080),
+          .sin_port = htons(8000),
           .sin_addr = {.s_addr = inet_addr(ip.c_str())},
       };
 
@@ -461,7 +461,6 @@ class App {
       AppInitializer app_initializer;
       app_initializer.BindSocket();
       this->server_ip = app_initializer.Test1();
-
       this->StartWSClient();
     });
 
@@ -513,14 +512,14 @@ class App {
             case WEBSOCKET_EVENT_DISCONNECTED:
               ESP_LOGI("WS", "Disconnected");
               app.ws_client_state = WsClientState::kLostConnection;
+              app.server_ip.clear();
               break;
             case WEBSOCKET_EVENT_DATA:
               if (event->op_code == 2) {
                 ESP_LOG_BUFFER_HEXDUMP("WS <--", event->data_ptr,
                                        event->data_len, ESP_LOG_INFO);
-                if (0)
-                  app.can_.SendControl(std::vector<uint8_t>(
-                      event->data_ptr, event->data_ptr + event->data_len));
+                app.can_.SendControl(std::vector<uint8_t>(
+                    event->data_ptr, event->data_ptr + event->data_len));
               } else if (event->op_code == 9) {
                 esp_websocket_client_send_with_opcode(
                     app.ws_client, WS_TRANSPORT_OPCODES_PONG,
@@ -593,6 +592,10 @@ class App {
 
     while (1) {
       if (ws_client_state == WsClientState::kLostConnection) {
+        AppInitializer app_initializer;
+        app_initializer.BindSocket();
+        this->server_ip = app_initializer.Test1();
+
         StartWSClient();
       }
 
