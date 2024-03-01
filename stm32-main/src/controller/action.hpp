@@ -13,7 +13,7 @@ struct Action : public ControllerBase<bool> {
   using ControllerBase::ControllerBase;
 
   bool Filter(RawPacket const& packet) override {
-    return (packet.element_id & 0x80) == assigned_id_;
+    return packet.element_id == (assigned_id_ | 0x80);
   }
 
   void Parse(RawPacket const& packet) override {

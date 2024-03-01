@@ -56,11 +56,13 @@ struct SwerveController {
     rot_left_45.OnFire([this] {
       auto angle = angle_out.GetValue();
       angle.angle -= 45;
+      printf("-> %lf;\n", angle.angle);
       angle_out.SetValue(angle);
     });
     rot_right_45.OnFire([this] {
       auto angle = angle_out.GetValue();
       angle.angle += 45;
+      printf("-> %lf;\n", angle.angle);
       angle_out.SetValue(angle);
     });
   }
@@ -68,7 +70,7 @@ struct SwerveController {
   SwerveController(SwerveController& other) = delete;
   SwerveController operator=(SwerveController& other) = delete;
 
-  bool Parse(RawPacket const& packet) {
+  bool Pass(RawPacket const& packet) {
     return move.Pass(packet) || rot_right_45.Pass(packet) ||
            rot_left_45.Pass(packet) || rotation_pid_enabled.Pass(packet) ||
            motor_0_pid.Pass(packet) || motor_1_pid.Pass(packet) ||
@@ -93,7 +95,7 @@ struct SwerveValueStore {
         motor_1_encoder(config.motor_1_encoder_id),
         motor_2_encoder(config.motor_2_encoder_id) {}
 
-  bool Parse(RawPacket const& packet) {
+  bool Pass(RawPacket const& packet) {
     return motor_0_encoder.Pass(packet) || motor_1_encoder.Pass(packet) ||
            motor_2_encoder.Pass(packet);
   }

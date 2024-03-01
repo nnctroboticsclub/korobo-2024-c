@@ -286,28 +286,18 @@ class App {
         swerve_(std::make_unique<SwerveComponent>(config.swerve_config,
                                                   controller_status_.swerve,
                                                   value_store_.swerve)) {
-    printf("CTor joined\n");
-
-    printf("CTor joined - 1\n");
     gyro_.Link(swerve_->swerve_.robot_angle);
-    printf("CTor joined - 2\n");
     swerve_->swerve_.motors[0]->drive_.Link(bldc[0]);
-    printf("CTor joined - 3\n");
     swerve_->swerve_.motors[0]->steer_.output.Link(
         driving_->GetSwerveRot0().GetMotor());
-    printf("CTor joined - 4\n");
 
     swerve_->swerve_.motors[1]->drive_.Link(bldc[1]);
-    printf("CTor joined - 5\n");
     swerve_->swerve_.motors[1]->steer_.output.Link(
         driving_->GetSwerveRot1().GetMotor());
-    printf("CTor joined - 6\n");
 
     swerve_->swerve_.motors[2]->drive_.Link(bldc[2]);
-    printf("CTor joined - 7\n");
     swerve_->swerve_.motors[2]->steer_.output.Link(
         driving_->GetSwerveRot2().GetMotor());
-    printf("CTor joined - 8\n");
 
     {
       auto &motor = this->driving_->GetElevation();
@@ -363,10 +353,10 @@ class App {
         ss << std::setw(2) << std::hex << (int)byte << " ";
       }
       printf("C< %s\n", ss.str().c_str());
-      controller_status_.Parse(data);
+      controller_status_.Pass(data);
     });
     can_.OnEvent(0x61, [this](std::vector<uint8_t> data) {  //
-      value_store_.Parse(data);
+      value_store_.Pass(data);
     });
 
     printf("\e[1;32m|\e[m \e[32m4\e[m Setting Initial value\n");
@@ -496,7 +486,57 @@ int main_(int argc, char const *argv[]) {
   return 0;
 }
 
-int main(int argc, char const *argv[]) {
+int main() {
+  mbed::SPI serial(PB_5, PB_4, NC);
+  char buf[] = {
+      0x00, 0x00, 0x00,
+
+      /* // COLOR 1
+      0x88,
+      0x00,
+      0x00,
+      0x44,
+      0x44,
+      0x00,
+      // COLOR 2
+      0x00,
+      0x88,
+      0x00,
+      0x00,
+      0x44,
+      0x44,
+      // COLOR 3
+      0x00,
+      0x00,
+      0x88,
+      0x00,
+      0x44,
+      0x44, */
+  };
+
+  size_t data_len = 128 + 4 * sizeof(buf) * 4;
+  char *data = new char[data_len];
+  for (size_t i = 0; i < 128; i++) {
+    data[i] = 0;
+  }
+
+  for (size_t k = 0; k < 4; k++) {
+    for (size_t i = 0; i < sizeof(buf); i++) {
+      for (size_t j = 0; j < 4; j++) {
+        data[128 + sizeof(buf) * 4 * k + (i) * 4 + j] =  //
+            (((buf[i] >> (7 - 2 * j)) & 1) ? 0xC : 0x8) << 4 |
+            (((buf[i] >> (7 - 2 * j - 1)) & 1) ? 0xC : 0x8);
+      }
+    }
+  }
+
+  serial.frequency(3.2E6);
+  serial.write(data, data_len, data, data_len);
+
+  return 0;
+}
+
+int main_pro(int argc, char const *argv[]) {
   printf("main() started CAN_ID=%d\n", CAN_ID);
 
   printf("Build information:\n");
@@ -544,6 +584,7 @@ int main(int argc, char const *argv[]) {
                                  .angle_pid_id = 3,
                              },
                          .shot_joystick_id = 2,
+                         .do_shot_id = 2,
                          .shot_speed_id = 0,
                          .max_elevation_id = 1},
       .value_store_ids =
