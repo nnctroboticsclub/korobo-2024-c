@@ -291,12 +291,39 @@ class KoroboCANDriver {
 };
 
 class AppInitializer {
-  int sock;
+  int sock = -1;
 
- public:
-  AppInitializer() { sock = socket(PF_INET, SOCK_DGRAM, IPPROTO_IP); }
+  bool TestConnectivility(std::string ip) {
+    ESP_LOGI("AppInit", "Testing TCP connectivility test: ip = %s\n",
+             ip.c_str());
+
+    int sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
+    sockaddr_in addr{
+        .sin_family = PF_INET,
+        .sin_port = htons(8001),
+        .sin_addr = {.s_addr = inet_addr(ip.c_str())},
+    };
+
+    auto err = connect(sock, (sockaddr*)&addr, sizeof(addr));
+    close(sock);
+    if (err < 0) {
+      ESP_LOGI("AppInit", "Failed to connect to %s\n", ip.c_str());
+      return false;
+    } else {
+      ESP_LOGE("AppInit", "Connected to %s\n", ip.c_str());
+      return true;
+    }
+  }
 
   int BindSocket() {
+    if (this->sock != -1) CloseSocket();
+
+    sock = socket(PF_INET, SOCK_DGRAM, IPPROTO_IP);
+    if (this->sock < 0) {
+      printf("Failed to create socket\n");
+      return -1;
+    }
+
     sockaddr_in addr{
         .sin_family = PF_INET,
         .sin_port = htons(38000),
@@ -305,31 +332,43 @@ class AppInitializer {
     return bind(this->sock, (sockaddr*)&addr, sizeof(addr));
   }
 
+  void CloseSocket() {
+    if (this->sock != -1) {
+      close(this->sock);
+      this->sock = -1;
+    }
+  }
+
+ public:
+  AppInitializer() {}
+
   std::vector<std::string> RecvPacket() {
     char buf[1024];
+
+    ESP_LOGI("AppInit", "Waiting for packet");
     auto bytes = recvfrom(this->sock, buf, sizeof(buf), 0, NULL, NULL);
     if (bytes < 0) {
-      printf("recvfrom failed (when receiving 'ip_length')\n");
+      ESP_LOGE("AppInit", "recvfrom failed (when receiving 'ip_length')\n");
       return {};
     }
+
+    ESP_LOGI("AppInit", "Packet Received");
     char* ptr = buf;
 
     uint32_t ip_count = ptr[0] << 24 | ptr[1] << 16 | ptr[2] << 8 | ptr[3];
-    ESP_LOGI("AppInitializer", "ip_count = 0x%08lxa", ip_count);
     ptr += 4;
 
     std::vector<std::string> ips;
     for (uint32_t i = 0; i < ip_count; i++) {
       uint32_t ip_length = ptr[0] << 24 | ptr[1] << 16 | ptr[2] << 8 | ptr[3];
-      ESP_LOGI("AppInitializer", "ip_length = 0x%08lxa", ip_length);
       ptr += 4;
 
       std::string ip;
       ip.resize(ip_length);
       std::copy(ptr, ptr + ip_length, ip.begin());
-      ESP_LOGI("AppInitializer", "ip = %s", ip.c_str());
       ptr += ip_length;
 
+      ESP_LOGI("AppInit", "- %s", ip.c_str());
       ips.push_back(ip);
     }
 
@@ -337,33 +376,12 @@ class AppInitializer {
   }
 
   std::string Test1() {
+    this->BindSocket();
     auto ips = this->RecvPacket();
+    this->CloseSocket();
 
     for (auto ip : ips) {
-      bool test_successful = false;
-
-      printf("Testing TCP connectivility test: ip = %s\n", ip.c_str());
-
-      int sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
-      sockaddr_in addr{
-          .sin_family = PF_INET,
-          .sin_port = htons(8000),
-          .sin_addr = {.s_addr = inet_addr(ip.c_str())},
-      };
-
-      auto err = connect(sock, (sockaddr*)&addr, sizeof(addr));
-      if (err < 0) {
-        printf("Failed to connect to %s\n", ip.c_str());
-      } else {
-        printf("Connected to %s\n", ip.c_str());
-        test_successful = true;
-      }
-
-      close(sock);
-
-      printf("\n");
-
-      if (test_successful) {
+      if (TestConnectivility(ip)) {
         printf("Test successful, using %s as the server\n", ip.c_str());
         return ip;
       }
@@ -373,13 +391,89 @@ class AppInitializer {
   }
 };
 
-class App {
-  enum WsClientState { kNotInitialized, kInitialized, kLostConnection };
+class RoboTCPClient {
+  int sock = -1;
+  std::function<void(std::vector<uint8_t> const&)> on_recv;
 
+ public:
+  RoboTCPClient() {}
+
+  void Connect(std::string ip) {
+    sockaddr_in addr{
+        .sin_family = PF_INET,
+        .sin_port = htons(8001),
+        .sin_addr = {.s_addr = inet_addr(ip.c_str())},
+    };
+
+    this->sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
+    auto err = connect(this->sock, (sockaddr*)&addr, sizeof(addr));
+    if (err < 0) {
+      printf("Failed to connect to %s\n", ip.c_str());
+    } else {
+      printf("Connected to %s\n", ip.c_str());
+    }
+  }
+
+  void Send(std::vector<uint8_t> const& data) {
+    std::vector<uint8_t> payload;
+    payload.push_back((data.size() >> 24) & 0xff);
+    payload.push_back((data.size() >> 16) & 0xff);
+    payload.push_back((data.size() >> 8) & 0xff);
+    payload.push_back(data.size() & 0xff);
+    payload.insert(payload.end(), data.begin(), data.end());
+
+    send(this->sock, payload.data(), payload.size(), 0);
+  }
+
+  void Thread() {
+    while (1) {
+      if (sock == -1) {
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
+        continue;
+      }
+
+      std::vector<uint8_t> buf;
+
+      buf.resize(4);
+      auto bytes = recv(this->sock, buf.data(), 4, 0);
+      if (bytes < 0) {
+        printf("recv failed\n");
+        close(this->sock);
+        this->sock = -1;
+        continue;
+      }
+
+      uint32_t length = buf[0] << 24 | buf[1] << 16 | buf[2] << 8 | buf[3];
+      ESP_LOGI("RoboTCP", "Receiving %ld bytes", length);
+
+      buf.erase(buf.begin(), buf.begin() + 4);
+      buf.resize(length);
+
+      bytes = recv(this->sock, buf.data(), length, 0);
+      if (bytes < 0) {
+        printf("recv failed\n");
+        close(this->sock);
+        this->sock = -1;
+        continue;
+      }
+
+      if (on_recv) {
+        on_recv(buf);
+      }
+    }
+  }
+
+  bool ConnectionEstablished() { return this->sock != -1; }
+
+  void OnRecv(std::function<void(std::vector<uint8_t> const&)> cb) {
+    this->on_recv = cb;
+  }
+};
+
+class App {
   KoroboCANDriver can_;
-  esp_websocket_client_handle_t ws_client = nullptr;
   std::string server_ip;
-  WsClientState ws_client_state = WsClientState::kNotInitialized;
+  RoboTCPClient client;
 
   stm32::ota::InitConfig& GetInitConfig() {
     using stm32::ota::InitConfig;
@@ -456,12 +550,6 @@ class App {
 
     ota_server.OnHTTPDStart([this](httpd_handle_t server) {
       logic_analyzer_register_uri_handlers(server);
-
-      ESP_LOGI("Manager", "<== App Initializer");
-      AppInitializer app_initializer;
-      app_initializer.BindSocket();
-      this->server_ip = app_initializer.Test1();
-      this->StartWSClient();
     });
 
     return ota_server;
@@ -475,71 +563,16 @@ class App {
 
     buffer.insert(buffer.end(), payload.begin(), payload.end());
 
-    if (esp_websocket_client_is_connected(ws_client)) {
-      ESP_LOG_BUFFER_HEXDUMP("WS -->", payload.data(), payload.size(),
-                             ESP_LOG_INFO);
-      esp_websocket_client_send_bin(ws_client, (const char*)payload.data(),
-                                    payload.size(), portMAX_DELAY);
+    if (client.ConnectionEstablished()) {
+      /* ESP_LOG_BUFFER_HEXDUMP("WS -->", payload.data(), payload.size(),
+                             ESP_LOG_INFO); */
+      client.Send(payload);
     }
   }
 
-  void StartWSClient() {
-    static char buffer[1024];
-    snprintf(buffer, sizeof(buffer), "ws://%s:8000/server", server_ip.c_str());
-
-    ESP_LOGI("WS", "Connecting to %s", buffer);
-
-    const esp_websocket_client_config_t ws_cfg = {
-        .uri = buffer,
-        .task_prio = 15,
-        .buffer_size = 0,
-        .reconnect_timeout_ms = 1000,
-        .network_timeout_ms = 1000,
-    };
-    ws_client = esp_websocket_client_init(&ws_cfg);
-
-    esp_websocket_register_events(
-        ws_client, WEBSOCKET_EVENT_ANY,
-        [](void* arg, esp_event_base_t base, int32_t id, void* data) {
-          esp_websocket_event_data_t* event = (esp_websocket_event_data_t*)data;
-          auto& app = *static_cast<App*>(arg);
-
-          switch (id) {
-            case WEBSOCKET_EVENT_CONNECTED:
-              ESP_LOGI("WS", "Connected");
-              app.ws_client_state = WsClientState::kInitialized;
-              break;
-            case WEBSOCKET_EVENT_DISCONNECTED:
-              ESP_LOGI("WS", "Disconnected");
-              app.ws_client_state = WsClientState::kLostConnection;
-              app.server_ip.clear();
-              break;
-            case WEBSOCKET_EVENT_DATA:
-              if (event->op_code == 2) {
-                ESP_LOG_BUFFER_HEXDUMP("WS <--", event->data_ptr,
-                                       event->data_len, ESP_LOG_INFO);
-                app.can_.SendControl(std::vector<uint8_t>(
-                    event->data_ptr, event->data_ptr + event->data_len));
-              } else if (event->op_code == 9) {
-                esp_websocket_client_send_with_opcode(
-                    app.ws_client, WS_TRANSPORT_OPCODES_PONG,
-                    (const uint8_t*)event->data_ptr, event->data_len,
-                    portMAX_DELAY);
-              } else if (event->op_code == WS_TRANSPORT_OPCODES_CLOSE) {
-                ESP_LOGI("WS", "Closed");
-                app.ws_client_state = WsClientState::kLostConnection;
-              } else {
-                ESP_LOGI("WS", "Received unhandled opcode=%hd", event->op_code);
-              }
-              break;
-            default:
-              ESP_LOGI("WS", "Unhandled event id=%ld", id);
-              break;
-          }
-        },
-        this);
-
-    esp_websocket_client_start(ws_client);
+  void StartTCPClient() {
+    ESP_LOGI("RoboTCP", "Connecting to %s", server_ip.c_str());
+    client.Connect(server_ip);
   }
 
  public:
@@ -557,6 +590,12 @@ class App {
       uint32_t msg_id = data[0];
       std::vector<uint8_t> payload(data.begin() + 1, data.end());
       this->SendCANtoRoboWs(msg_id, payload);
+    });
+
+    client.OnRecv([this](std::vector<uint8_t> const& data) {
+      /* ESP_LOG_BUFFER_HEXDUMP("WS <--", data.data(), data.size(),
+       * ESP_LOG_INFO); */
+      can_.SendControl(data);
     });
   }
 
@@ -588,15 +627,24 @@ class App {
         },
         "LoadReporting", 4096, this, 1, NULL);
 
+    xTaskCreate(
+        [](void* args) {
+          auto& app = *static_cast<App*>(args);
+          app.client.Thread();
+        },
+        "TCPClient", 4096, this, 1, NULL);
+
     stm32::ota::OTAServer ota_server = this->StartOTAServer();
 
-    while (1) {
-      if (ws_client_state == WsClientState::kLostConnection) {
-        AppInitializer app_initializer;
-        app_initializer.BindSocket();
-        this->server_ip = app_initializer.Test1();
+    AppInitializer app_initializer;
+    this->server_ip = app_initializer.Test1();
+    client.Connect(server_ip);
 
-        StartWSClient();
+    while (1) {
+      if (!client.ConnectionEstablished()) {
+        AppInitializer app_initializer;
+        this->server_ip = app_initializer.Test1();
+        client.Connect(server_ip);
       }
 
       vTaskDelay(pdMS_TO_TICKS(100));

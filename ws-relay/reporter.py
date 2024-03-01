@@ -30,6 +30,7 @@ class IPReporter:
 
     @staticmethod
     def get_ip_address_list():
+        # return ["192.168.22.222"]
         ip_list = [
             ip[0]
             for (fa, _, _, _, ip) in socket.getaddrinfo(socket.gethostname(), 0)
