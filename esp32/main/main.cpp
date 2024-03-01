@@ -30,6 +30,8 @@ class CANDriver {
   std::vector<Callback> rx_callbacks_;
   std::vector<Callback> tx_callbacks_;
 
+  std::vector<std::pair<uint16_t, std::vector<uint8_t>>> tx_buffer_;
+
   int bits_per_sample_ = 0;
   std::queue<int> bits_per_samples_ = std::queue<int>();
   float bus_load_ = 0.0f;
@@ -129,6 +131,23 @@ class CANDriver {
     }
   }
 
+  static void TxBufferSender(void* args) {
+    auto self = static_cast<CANDriver*>(args);
+
+    while (1) {
+      if (self->tx_buffer_.size() > 0) {
+        auto buffer = self->tx_buffer_;
+        self->tx_buffer_.clear();
+
+        for (auto& [id, data] : buffer) {
+          self->DoSendStd(id, data);
+        }
+      } else {
+        vTaskDelay(pdMS_TO_TICKS(10));
+      }
+    }
+  }
+
   static void BitSampleThread(void* args) {
     auto self = static_cast<CANDriver*>(args);
     while (1) {
@@ -149,6 +168,35 @@ class CANDriver {
   }
 
   void AddBitSample(int bits) { bits_per_sample_ += bits; }
+
+  bool DoSendStd(uint32_t id, std::vector<uint8_t> const& data) {
+    static const char* TAG = "Send#CANDriver";
+
+    if (data.size() > 8) {
+      ESP_LOGE(TAG, "Data size must be <= 8");
+      return false;
+    }
+
+    twai_message_t msg = {
+        .extd = 0,
+        .identifier = id,
+        .data_length_code = (uint8_t)data.size(),
+        .data = {0},
+    };
+    std::copy(data.begin(), data.end(), msg.data);
+
+    for (auto& cb : tx_callbacks_) {
+      cb(id, data);
+    }
+
+    auto status = twai_transmit_v2(twai_driver_, &msg, pdMS_TO_TICKS(1000));
+    if (status != ESP_OK) {
+      ESP_LOGE(TAG, "Failed to transmit TWAI message: %s",
+               esp_err_to_name(status));
+      return false;
+    }
+    return true;
+  }
 
  public:
   CANDriver() : twai_driver_(nullptr), callbacks_(), bus_locked(false) {}
@@ -195,35 +243,13 @@ class CANDriver {
                 NULL);
     xTaskCreate(CANDriver::BitSampleThread, "BitSampleThread#CAN", 4096, this,
                 1, NULL);
+
+    xTaskCreate(CANDriver::TxBufferSender, "TxBufferSender#CAN", 4096, this, 1,
+                NULL);
   }
 
-  bool SendStd(uint32_t id, std::vector<uint8_t> const& data) {
-    static const char* TAG = "Send#CANDriver";
-
-    if (data.size() > 8) {
-      ESP_LOGE(TAG, "Data size must be <= 8");
-      return false;
-    }
-
-    twai_message_t msg = {
-        .extd = 0,
-        .identifier = id,
-        .data_length_code = (uint8_t)data.size(),
-        .data = {0},
-    };
-    std::copy(data.begin(), data.end(), msg.data);
-
-    for (auto& cb : tx_callbacks_) {
-      cb(id, data);
-    }
-
-    auto status = twai_transmit_v2(twai_driver_, &msg, pdMS_TO_TICKS(1000));
-    if (status != ESP_OK) {
-      ESP_LOGE(TAG, "Failed to transmit TWAI message: %s",
-               esp_err_to_name(status));
-      return false;
-    }
-    return true;
+  void SendStd(uint32_t id, std::vector<uint8_t> const& data) {
+    this->tx_buffer_.emplace_back(id, data);
   }
 
   void OnMessage(uint32_t id, Callback cb) {
@@ -397,6 +423,8 @@ class RoboTCPClient {
   int sock = -1;
   std::function<void(std::vector<uint8_t> const&)> on_recv;
 
+  std::vector<std::vector<uint8_t>> recv_buffer;
+
  public:
   RoboTCPClient() {}
 
@@ -404,19 +432,51 @@ class RoboTCPClient {
     sockaddr_in addr{
         .sin_family = PF_INET,
         .sin_port = htons(8001),
-        .sin_addr = {.s_addr = inet_addr(ip.c_str())},
+        .sin_addr = {.s_addr = INADDR_ANY},
     };
 
-    this->sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
-    auto err = connect(this->sock, (sockaddr*)&addr, sizeof(addr));
+    this->sock = socket(PF_INET, SOCK_DGRAM, IPPROTO_TCP);
+
+    /* auto err = connect(this->sock, (sockaddr*)&addr, sizeof(addr));
     if (err < 0) {
-      ESP_LOGI("RoboTCP", "Failed to connect to %s\n", ip.c_str());
+      ESP_LOGE("RoboTCP", "Failed to connect to %s\n", ip.c_str());
+      return;
+    } else {
+      ESP_LOGI("RoboTCP", "Connected to %s\n", ip.c_str());
+    } */
+
+    // Set BROADCAST
+    int flag = 1;
+    auto err = setsockopt(this->sock, SOL_SOCKET, SO_BROADCAST, (char*)&flag,
+                          sizeof(int));
+    if (err < 0) {
+      ESP_LOGW("RoboTCP", "Failed to set SO_BROADCAST");
+    } else {
+      ESP_LOGI("RoboTCP", "SO_BROADCAST is set");
+    }
+
+    err = setsockopt(this->sock, SOL_SOCKET, SO_REUSEADDR, (char*)&flag,
+                     sizeof(int));
+    if (err < 0) {
+      ESP_LOGW("RoboTCP", "Failed to set SO_REUSEADDR");
+    } else {
+      ESP_LOGI("RoboTCP", "SO_REUSEADDR is set");
+    }
+
+    err = bind(this->sock, (sockaddr*)&addr, sizeof(addr));
+    if (err < 0) {
+      ESP_LOGE("RoboTCP", "Failed to connect to %s\n", ip.c_str());
+      return;
     } else {
       ESP_LOGI("RoboTCP", "Connected to %s\n", ip.c_str());
     }
   }
 
   void Send(std::vector<uint8_t> const& data) {
+    sockaddr_in dest = {.sin_family = PF_INET,
+                        .sin_port = htons(8001),
+                        .sin_addr = {.s_addr = inet_addr("255.255.255.255")}};
+
     std::vector<uint8_t> payload;
     payload.push_back((data.size() >> 24) & 0xff);
     payload.push_back((data.size() >> 16) & 0xff);
@@ -424,44 +484,67 @@ class RoboTCPClient {
     payload.push_back(data.size() & 0xff);
     payload.insert(payload.end(), data.begin(), data.end());
 
-    send(this->sock, payload.data(), payload.size(), 0);
+    auto ret = sendto(this->sock, payload.data(), payload.size(), 0,
+                      (struct sockaddr*)&dest, sizeof(dest));
+
+    // send(this->sock, payload.data(), payload.size(), 0);
   }
 
   void Thread() {
+    std::vector<uint8_t> buf{0};
+    sockaddr_in remote_addr;
+    socklen_t remote_addr_len = sizeof(remote_addr);
     while (1) {
       if (sock == -1) {
         vTaskDelay(1000 / portTICK_PERIOD_MS);
         continue;
       }
 
-      std::vector<uint8_t> buf;
-
-      buf.resize(4);
-      auto bytes = recv(this->sock, buf.data(), 4, 0);
-      if (bytes < 0) {
-        printf("recv failed\n");
+      std::vector<uint8_t> chunk;
+      chunk.resize(0x10);
+      ESP_LOGI("RoboTCP", "Waiting data");
+      auto ret = recvfrom(                 //
+          this->sock,                      //
+          chunk.data(), chunk.size(),      //
+          0,                               //
+          (struct sockaddr*)&remote_addr,  //
+          &remote_addr_len                 //
+      );
+      if (ret < 0) {
+        ESP_LOGE("RoboTCP", "recv failed\n");
         close(this->sock);
         this->sock = -1;
-        continue;
+        break;
       }
+      chunk.resize(ret);
 
-      uint32_t length = buf[0] << 24 | buf[1] << 16 | buf[2] << 8 | buf[3];
-      ESP_LOGI("RoboTCP", "Receiving %ld bytes", length);
+      buf.insert(buf.end(), chunk.begin(), chunk.end());
 
-      buf.erase(buf.begin(), buf.begin() + 4);
-      buf.resize(length);
+      // buf.resize(buf.size() - 0x10 + ret);
+      ESP_LOG_BUFFER_HEXDUMP("TCP <--", buf.data(), buf.size(), ESP_LOG_INFO);
 
-      bytes = recv(this->sock, buf.data(), length, 0);
-      if (bytes < 0) {
-        printf("recv failed\n");
-        close(this->sock);
-        this->sock = -1;
-        continue;
+      auto ptr = buf.data();
+      auto read_bytes = 0;
+      while (buf.size() - read_bytes > 4) {
+        uint32_t length = buf[0] << 24 | buf[1] << 16 | buf[2] << 8 | buf[3];
+        read_bytes += 4;
+        ptr += 4;
+
+        if (length >= 0x20) {
+          ESP_LOGE("RoboTCP", "Detected Malformed Data!!!");
+          read_bytes = buf.size();
+          break;
+        }
+
+        std::vector<uint8_t> payload(ptr, ptr + length);
+        read_bytes += length;
+        ptr += length;
+
+        if (this->on_recv) {
+          this->on_recv(payload);
+        }
       }
-
-      if (on_recv) {
-        on_recv(buf);
-      }
+      buf.erase(buf.begin(), buf.begin() + read_bytes);
     }
   }
 
@@ -572,11 +655,6 @@ class App {
     }
   }
 
-  void StartTCPClient() {
-    ESP_LOGI("RoboTCP", "Connecting to %s", server_ip.c_str());
-    client.Connect(server_ip);
-  }
-
  public:
   App() : can_() {}
 
@@ -634,19 +712,19 @@ class App {
           auto& app = *static_cast<App*>(args);
           app.client.Thread();
         },
-        "TCPClient", 4096, this, 1, NULL);
+        "TCPClient", 4096, this, 4, NULL);
 
     stm32::ota::OTAServer ota_server = this->StartOTAServer();
 
-    AppInitializer app_initializer;
-    this->server_ip = app_initializer.Test1();
-    client.Connect(server_ip);
+    // AppInitializer app_initializer;
+    // this->server_ip = app_initializer.Test1();
+    client.Connect("");
 
     while (1) {
       if (!client.ConnectionEstablished()) {
-        AppInitializer app_initializer;
-        this->server_ip = app_initializer.Test1();
-        client.Connect(server_ip);
+        // AppInitializer app_initializer;
+        // this->server_ip = app_initializer.Test1();
+        client.Connect("");
       }
 
       vTaskDelay(pdMS_TO_TICKS(100));
