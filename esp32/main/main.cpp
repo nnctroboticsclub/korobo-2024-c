@@ -294,7 +294,8 @@ class AppInitializer {
   int sock = -1;
 
   bool TestConnectivility(std::string ip) {
-    ESP_LOGI("AppInit", "Testing TCP connectivility test: ip = %s\n",
+    ESP_LOGI("AppInit",
+             "Testing TCP connectivility test: ip = %s (port = 8001)\n",
              ip.c_str());
 
     int sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
@@ -307,10 +308,10 @@ class AppInitializer {
     auto err = connect(sock, (sockaddr*)&addr, sizeof(addr));
     close(sock);
     if (err < 0) {
-      ESP_LOGI("AppInit", "Failed to connect to %s\n", ip.c_str());
+      ESP_LOGE("AppInit", "%s is not available IP", ip.c_str());
       return false;
     } else {
-      ESP_LOGE("AppInit", "Connected to %s\n", ip.c_str());
+      ESP_LOGI("AppInit", "%s is available ip", ip.c_str());
       return true;
     }
   }
@@ -320,7 +321,7 @@ class AppInitializer {
 
     sock = socket(PF_INET, SOCK_DGRAM, IPPROTO_IP);
     if (this->sock < 0) {
-      printf("Failed to create socket\n");
+      ESP_LOGE("AppInit", "Failed to create socket");
       return -1;
     }
 
@@ -348,7 +349,7 @@ class AppInitializer {
     ESP_LOGI("AppInit", "Waiting for packet");
     auto bytes = recvfrom(this->sock, buf, sizeof(buf), 0, NULL, NULL);
     if (bytes < 0) {
-      ESP_LOGE("AppInit", "recvfrom failed (when receiving 'ip_length')\n");
+      ESP_LOGE("AppInit", "recvfrom failed (when receiving 'ip_length')");
       return {};
     }
 
@@ -382,7 +383,8 @@ class AppInitializer {
 
     for (auto ip : ips) {
       if (TestConnectivility(ip)) {
-        printf("Test successful, using %s as the server\n", ip.c_str());
+        ESP_LOGI("AppInit", "Test successful, using %s as the server",
+                 ip.c_str());
         return ip;
       }
     }
@@ -408,9 +410,9 @@ class RoboTCPClient {
     this->sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
     auto err = connect(this->sock, (sockaddr*)&addr, sizeof(addr));
     if (err < 0) {
-      printf("Failed to connect to %s\n", ip.c_str());
+      ESP_LOGI("RoboTCP", "Failed to connect to %s\n", ip.c_str());
     } else {
-      printf("Connected to %s\n", ip.c_str());
+      ESP_LOGI("RoboTCP", "Connected to %s\n", ip.c_str());
     }
   }
 
