@@ -567,15 +567,15 @@ class App {
         .uarts = {InitConfig::Uart{
             .port = 1,
             .baud_rate = 9600,
-            .tx = -1,
-            .rx = 14,
+            .tx = 17,
+            .rx = 16,
             .parity = UART_PARITY_DISABLE,
         }},
         .spi_buses = {InitConfig::SPIBus{
             .port = 2,
-            .miso = GPIO_NUM_33,
-            .mosi = GPIO_NUM_25,
-            .sclk = GPIO_NUM_26,
+            .miso = GPIO_NUM_19,
+            .mosi = GPIO_NUM_23,
+            .sclk = GPIO_NUM_18,
         }},
         .stm32bls = {InitConfig::STM32BL{
             .id = 1,
@@ -584,8 +584,8 @@ class App {
         }},
         .stm32s = {InitConfig::STM32{
             .id = 2,
-            .reset = GPIO_NUM_16,
-            .boot0 = GPIO_NUM_17,
+            .reset = GPIO_NUM_22,
+            .boot0 = GPIO_NUM_21,
             .bl_id = 1,
         }},
         .serial_proxies = {InitConfig::SerialProxy{.id = 1, .uart_port_id = 1}},
@@ -631,7 +631,7 @@ class App {
   }
   stm32::ota::OTAServer StartOTAServer() {
     auto& init_config = this->GetInitConfig();
-    stm32::ota::OTAServer ota_server(idf::GPIONum(22), init_config);
+    stm32::ota::OTAServer ota_server(idf::GPIONum(34), init_config);
 
     ota_server.OnHTTPDStart([this](httpd_handle_t server) {
       logic_analyzer_register_uri_handlers(server);
@@ -641,12 +641,8 @@ class App {
   }
 
   void SendCANtoRoboWs(uint16_t id, std::vector<uint8_t> const& data) {
-    static std::vector<char> buffer;
-
     std::vector<uint8_t> payload = data;
     payload.insert(payload.begin(), id);
-
-    buffer.insert(buffer.end(), payload.begin(), payload.end());
 
     if (client.ConnectionEstablished()) {
       /* ESP_LOG_BUFFER_HEXDUMP("WS -->", payload.data(), payload.size(),
