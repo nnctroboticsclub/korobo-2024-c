@@ -51,7 +51,6 @@ class PseudoAbsEncoder {
  private:
   int pulses_per_rotation = 200;
 
-  int rots = 0;
   int current_pulses = 0;
   bool is_abs_ready = false;
 
@@ -85,9 +84,9 @@ class PseudoAbsEncoder {
       }
     });
     index_.rise([this]() {
+      if (is_abs_ready) return;
       current_pulses = 0;
       is_abs_ready = true;
-      rots++;
     });
 
     printf("PseudoAbsEncoder(%d, %d, %d) done\n", A, B, index);
@@ -96,9 +95,8 @@ class PseudoAbsEncoder {
   PseudoAbsEncoder(Config const& config)
       : PseudoAbsEncoder(config.a, config.b, config.index) {}
 
-  double GetAngle() { return 360 * current_pulses / pulses_per_rotation; }
+  double GetAngle() { return 360 * (current_pulses / 2) / pulses_per_rotation; }
   int GetPulses() { return current_pulses; }
-  int GetRots() { return rots; }
 
   bool IsAbsReady() { return is_abs_ready; }
 };
@@ -179,18 +177,17 @@ class App {
   void MonitorThread() {
     char buf[80];
     while (1) {
-      snprintf(buf, 80,
-               "encoders: "
-               "%d(%4.1lf)[%d:%d] %d(%4.1lf)[%d:%d] %d(%4.1lf)[%d:%d] "
-               "%d(%4.1lf)[%d:%d]\n",
-               encoder_sm0_.GetPulses(), encoder_sm0_.GetAngle(),
-               encoder_sm0_.IsAbsReady(), encoder_sm0_.GetRots(),
-               encoder_sm1_.GetPulses(), encoder_sm1_.GetAngle(),
-               encoder_sm1_.IsAbsReady(), encoder_sm1_.GetRots(),
-               encoder_sm2_.GetPulses(), encoder_sm2_.GetAngle(),
-               encoder_sm2_.IsAbsReady(), encoder_sm2_.GetRots(),
-               encoder_dummy_.GetPulses(), encoder_dummy_.GetAngle(),
-               encoder_dummy_.IsAbsReady(), encoder_dummy_.GetRots());
+      snprintf(
+          buf, 80,
+          "encoders p(a)[abs]: "
+          "%d(%4.1lf)[%s] %d(%4.1lf)[%s] %d(%4.1lf)[%s] "
+          "%d(%4.1lf)[%s]\n",
+          encoder_sm0_.GetPulses(), encoder_sm0_.GetAngle(),
+          encoder_sm0_.IsAbsReady() ? "OK" : "--", encoder_sm1_.GetPulses(),
+          encoder_sm1_.GetAngle(), encoder_sm1_.IsAbsReady() ? "OK" : "--",
+          encoder_sm2_.GetPulses(), encoder_sm2_.GetAngle(),
+          encoder_sm2_.IsAbsReady() ? "OK" : "--", encoder_dummy_.GetPulses(),
+          encoder_dummy_.GetAngle(), encoder_dummy_.IsAbsReady() ? "OK" : "--");
       AtomicPrint(buf);
       wait_ns(500E6);
     }
@@ -239,17 +236,18 @@ int main2(int argc, char const* argv[]) {
 
 int main(int argc, char const* argv[]) {
   printf("main() started CAN_ID=%d\n", CAN_ID);
-  App::Config config{.can =
-                         {
-                             .id = CAN_ID,
-                             .freqency = (int)1E6,
-                             .rx = PB_8,
-                             .tx = PB_9,
-                         },
-                     .encoder_sm0 = {.a = PA_6, .b = PC_9, .index = PC_7},
-                     .encoder_sm1 = {.a = PB_14, .b = PB_15, .index = PB_13},
-                     .encoder_sm2 = {.a = PA_0, .b = PB_10, .index = PA_1},
-                     .encoder_dummy = {.a = PB_2, .b = PC_8, .index = PA_3}};
+  App::Config config{
+      .can =
+          {
+              .id = CAN_ID,
+              .freqency = (int)1E6,
+              .rx = PB_8,
+              .tx = PB_9,
+          },
+      .encoder_sm0 = {.a = PB_14, .b = PB_15, .index = PB_13},  // ok
+      .encoder_sm1 = {.a = PA_0, .b = PB_10, .index = PA_1},    // ok
+      .encoder_sm2 = {.a = PB_2, .b = PC_8, .index = PB_3},
+      .encoder_dummy = {.a = PA_5, .b = PC_9, .index = PB_7}};
   // PB_4: LED
 
   printf("Initializing class\n");
