@@ -1,6 +1,7 @@
 #include <mbed.h>
 #include <rtos.h>
 
+#include <atomic>
 #include <array>
 #include <vector>
 #include <sstream>
@@ -82,8 +83,14 @@ class DrivingCANBus {
 
   void Tick() {
     mdc0_.Tick();
-    // mdc1_.Tick();
-    // mdc2_.Tick();
+    mdc1_.Tick();
+    mdc2_.Tick();
+  }
+
+  void Send() {
+    mdc0_.Send();
+    mdc1_.Send();
+    mdc2_.Send();
   }
 
   robotics::assembly::MotorWithEncoder<float> &GetSwerveRot0() {
@@ -227,6 +234,8 @@ class App {
   //* Thread
   Thread *thr1;  //* 無関係
 
+  std::atomic<bool> prevent_swerve_update;
+
   void DoReport() {
     this->swerve_->ReportTo(can_);
 
@@ -255,9 +264,12 @@ class App {
   void MainThread() {
     int i = 0;
     while (1) {
-      this->driving_->mdc0_.Send();
+      this->driving_->Tick();
+      this->driving_->Send();
 
-      swerve_->swerve_.Update(0.01f);
+      if (!this->prevent_swerve_update) {
+        swerve_->swerve_.Update(0.01f);
+      }
       if (i % 10 == 0) {  // interval: 100ms = 0.100s
         this->DoReport();
 
@@ -273,7 +285,7 @@ class App {
   App(Config &config)
       : can_(config.can.id, config.can.rx, config.can.tx, config.can.freqency),
         driving_(std::make_unique<DrivingCANBus>(new ikarashiCAN_mk2(
-            config.driving_can.rx, config.driving_can.tx, 0))),
+            config.driving_can.rx, config.driving_can.tx, 1))),
         bldc{
             {config.swerve_esc_pins.swerve_pin_m0, 1000, 2000},
             {config.swerve_esc_pins.swerve_pin_m1, 1000, 2000},
@@ -286,6 +298,8 @@ class App {
         swerve_(std::make_unique<SwerveComponent>(config.swerve_config,
                                                   controller_status_.swerve,
                                                   value_store_.swerve)) {
+    prevent_swerve_update.store(false);
+
     gyro_.Link(swerve_->swerve_.robot_angle);
     swerve_->swerve_.motors[0]->drive_.Link(bldc[0]);
     swerve_->swerve_.motors[0]->steer_.output.Link(
@@ -342,7 +356,7 @@ class App {
           "\e[1;32m|\e[m \e[32m2\e[m \e[1;31m=> !!!\e[m BNO055 Detection "
           "failed.\e[m\n");
     }
-    printf("\e[1;32m|\e[m \e[32m3\e[m Initializing CAN\n");
+    printf("\e[1;32m|\e[m \e[32m3\e[m Initializing CAN (Com)\n");
     printf("\e[1;32m|\e[m \e[32m|\e[m \e[33m1\e[m Initializing CAN Driver\n");
     can_.Init();
     this->driving_->Init();
@@ -385,30 +399,33 @@ class App {
     auto &motor1 = swerve_->swerve_.motors[1]->steer_;
     auto &motor2 = swerve_->swerve_.motors[2]->steer_;
 
-    motor0.goal.SetValue(0);
-    motor1.goal.SetValue(0);
-    motor2.goal.SetValue(0);
-
     bool motor_0_initialized = false;
     bool motor_1_initialized = false;
     bool motor_2_initialized = false;
 
+    prevent_swerve_update = true;
     motor0.output.SetValue(0.4);
     motor1.output.SetValue(0.4);
     motor2.output.SetValue(0.4);
     while (1) {
       if (!motor_0_initialized && motor0.feedback.GetValue() != 0) {
-        ThisThread::sleep_for(2s);
         printf("\e[1;32m|\e[m \e[32m|\e[m \e[33m-\e[m Motor 0 is ready\n");
         motor_0_initialized = true;
+        motor0.goal.SetValue(0);
       }
       if (!motor_1_initialized && motor1.feedback.GetValue() != 0) {
         printf("\e[1;32m|\e[m \e[32m|\e[m \e[33m-\e[m Motor 1 is ready\n");
         motor_1_initialized = true;
+        motor1.goal.SetValue(0);
       }
       if (!motor_2_initialized && motor2.feedback.GetValue() != 0) {
         printf("\e[1;32m|\e[m \e[32m|\e[m \e[33m-\e[m Motor 2 is ready\n");
         motor_2_initialized = true;
+        motor2.goal.SetValue(0);
+      }
+
+      if (motor_0_initialized && motor_1_initialized && motor_2_initialized) {
+        break;
       }
 
       if (motor_0_initialized) motor0.Update(0.01f);
@@ -416,10 +433,8 @@ class App {
       if (motor_2_initialized) motor2.Update(0.01f);
 
       ThisThread::sleep_for(10ms);
-
-      break;  // THIS IS FOR DEBUG
     }
-
+    prevent_swerve_update = false;
     printf("\e[1;32m+\e[m   \e[33m+\e[m\n");
 
     can_.SetStatus(DistributedCAN::Statuses::kReady);
@@ -466,7 +481,7 @@ int main_im(int argc, char const *argv[]) {
 
   return 0;
 }
-int main_(int argc, char const *argv[]) {
+int main_itm(int argc, char const *argv[]) {
   ikarashiCAN_mk2 can{PB_5, PB_6, 0};
   DrivingCANBus *bus = new DrivingCANBus(&can);
   int i;
@@ -486,7 +501,7 @@ int main_(int argc, char const *argv[]) {
   return 0;
 }
 
-int main() {
+int main_led() {
   mbed::SPI serial(PB_5, PB_4, NC);
   char buf[] = {
       0x00, 0x00, 0x00,
@@ -534,6 +549,47 @@ int main() {
   serial.write(data, data_len, data, data_len);
 
   return 0;
+}
+
+int main() {
+  auto* can = new DistributedCAN(1, PB_8, PB_9, 1000000);
+  printf("Init!\n");
+  can->Init();
+  printf("Setting up handlers\n");
+  can->OnRx([](uint16_t id, std::vector<uint8_t> data) {
+    printf("%3hX Received: ", id);
+    for (auto byte : data) {
+      printf("%02x ", byte);
+    }
+    printf("\n");
+  });
+  can->OnTx([](uint16_t id, std::vector<uint8_t> data) {
+    printf("%3hX Sent: ", id);
+    for (auto byte : data) {
+      printf("%02x ", byte);
+    }
+    printf("\n");
+  });
+
+  printf("Sending\n");
+  auto ret  = can->Send(0x00, {0x00, 0x01, 0x02});
+  printf("Result = %d\n", ret);
+  printf("Sending\n");
+   ret  = can->Send(0x00, {0x00, 0x01, 0x02});
+  printf("Result = %d\n", ret);
+  printf("Sending\n");
+   ret  = can->Send(0x00, {0x00, 0x01, 0x02});
+  printf("Result = %d\n", ret);
+  printf("Sending\n");
+   ret  = can->Send(0x00, {0x00, 0x01, 0x02});
+  printf("Result = %d\n", ret);
+  printf("Sending\n");
+   ret  = can->Send(0x00, {0x00, 0x01, 0x02});
+  printf("Result = %d\n", ret);
+
+  while (1) {
+    ThisThread::sleep_for(100s);
+  }
 }
 
 int main_pro(int argc, char const *argv[]) {
