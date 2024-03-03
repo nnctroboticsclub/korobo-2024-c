@@ -8,7 +8,7 @@ struct Float : public ControllerBase<float> {
   using ControllerBase::ControllerBase;
 
   bool Filter(RawPacket const& packet) override {
-    return packet.element_id == assigned_id_;
+    return packet.element_id == (0x60 | assigned_id_);
   }
 
   void Parse(RawPacket const& packet) override {

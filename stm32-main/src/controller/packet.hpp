@@ -18,6 +18,8 @@ struct RawPacket {
   }
 
   uint8_t operator[](int index) const { return data[index]; }
+
+  std::size_t size() const { return data.size(); }
 };
 
 }  // namespace controller
