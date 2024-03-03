@@ -3,7 +3,8 @@
 # SER1: STM32@Main MCU device serial number
 # SER2: STM32@Encoder MCU device serial number
 
-SER1    = 066BFF303435554157043738
+# SER1    = 066BFF303435554157043738
+SER1    = 0670FF3932504E3043102150 # F747
 SER2    = 0668FF383333554157243840
 
 
@@ -65,19 +66,26 @@ $(MNT1)/MBED.HTM: $(MNT1)
 
 cs1:
 	cd /workspaces/korobo2023/stm32-main && \
-		mbed compile --profile mbed-os/tools/profiles/debug.json
+		mbed compile --profile mbed-os/tools/profiles/debug.json -m NUCLEO_F767ZI
 
 fs1: $(MNT1)/MBED.HTM
 	cd /workspaces/korobo2023/stm32-main && \
 		sudo cp BUILD/*/GCC_ARM-DEBUG/stm32-main.bin $(MNT1)/binary.bin && \
 		sudo sync $(MNT1)/binary.bin
 
+ws1:
+	./upload_flash.sh \
+		localhost:8011 \
+		stm32-main/BUILD/NUCLEO_F446RE/GCC_ARM-DEBUG/stm32-main.bin
+
 ms1:
 	cd /workspaces/korobo2023/stm32-main && \
 		mbed sterm --port $(ACM1)
 
+
 ts1: cs1 fs1 ms1
 us1: cs1 fs1
+rs1: cs1 ws1
 a2r1:
 	addr2line -e /workspaces/korobo2023/stm32-main/BUILD/NUCLEO_F446RE/GCC_ARM-DEBUG/stm32-main.elf
 
