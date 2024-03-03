@@ -1,7 +1,6 @@
 import asyncio
 from contextlib import asynccontextmanager
 import socket
-import threading
 from typing import List
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 
@@ -10,47 +9,14 @@ server: socket.socket | None = None
 c2s_pps = 0
 s2c_pps = 0
 
-"""
-class AsyncTCPServer:
-    def __init__(self, host: str, port: int):
-        self.host = host
-        self.port = port
-        self.server = None
 
-    async def start(self):
-        self.server = await asyncio.start_server(
-            self.handle_client, self.host, self.port
-        )
-        print(f"Server started at {self.host}:{self.port}")
-
-    async def handle_client(self, reader, writer: asyncio.StreamWriter):
-        global server, s2c_pps
-        print(f"New connection from {writer.get_extra_info('peername')}")
-        server = writer
-        try:
-            while True:
-                data = await reader.read(4)
-                if not data:
-                    break
-                length = int.from_bytes(data, "big")
-
-                data = await reader.read(length)
-                if not data:
-                    break
-
-                s2c_pps += 1
-                for client in connected_clients:
-                    await client.send_bytes(data)
-        finally:
-            print("Connection closed")
-            server = None
-
-    async def stop(self):
-        if self.server:
-            self.server.close()
-            await self.server.wait_closed()
-            print("Server stopped")
-"""
+def get_self_ip():
+    ip_list = [
+        ip[0]
+        for (fa, _, _, _, ip) in socket.getaddrinfo(socket.gethostname(), 0)
+        if fa == socket.AddressFamily.AF_INET
+    ]
+    return ip_list
 
 
 class UDPServer:
@@ -58,67 +24,113 @@ class UDPServer:
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.host = host
         self.port = port
-        self.thread: threading.Thread
-
-        self.stop_ = False
-
-    async def start(self):
-        global server
 
         self.socket.bind((self.host, self.port))
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
         self.socket.setblocking(False)
 
+        self.stop_ = False
+
+    def mark_as_primary(self):
+        global server
+
         server = self.socket
-        self.thread = threading.Thread(target=lambda: self.worker())
-        self.thread.start()
 
-    def worker(self):
-        loop = asyncio.new_event_loop()
-        loop.run_until_complete(self.loop())
-        loop.close()
+    async def recv_raw_message(self):
+        data = b""
+        host = ""
+        port = 0
+        while not self.stop_:
+            try:
+                data, (host, port) = self.socket.recvfrom(0x1000, 0)
+                if host in get_self_ip():
+                    continue
+                break
+            except BlockingIOError:
+                await asyncio.sleep(0.01)
+                continue
+        return data, (host, port)
 
-    async def loop(self):
+    async def worker(self):
         buffer = b""
         while not self.stop_:
-            print("Waiting Packet...")
-            while not self.stop_:
-                try:
-                    data, addr = self.socket.recvfrom(0x1000, 0)
-                    break
-                except BlockingIOError:
-                    continue
+            data, (host, port) = await self.recv_raw_message()
             buffer = buffer + data
 
             while len(buffer) > 4:
                 length = int.from_bytes(buffer[:4], "big")
                 buffer = buffer[4:]
-                print(f"- Length: {length}, From: {addr}")
+                print(f"{host}:{port} | {length:4d} | ", end="")
 
                 data = buffer[:length]
                 buffer = buffer[length:]
 
-                print(f"- data: {data.hex()}, From: {addr}")
+                print(f"{data.hex()}")
                 for client in connected_clients:
                     await client.send_bytes(data)
 
-            print(f"==> remain: {buffer.hex()}")
+            if buffer:
+                print(f"==> remain: {buffer.hex()}")
+
+        print("Server stopped!")
 
     async def stop(self):
         self.stop_ = 1
         await asyncio.sleep(1)
 
 
+class IPReporter:
+    def __init__(self):
+        self.stop_ = False
+
+    @staticmethod
+    def send_ip():
+        lst = get_self_ip()
+        payload = IPReporter.pack_ip_address_list(lst)
+
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 2)
+            sock.sendto(payload, ("255.255.255.255", 38000))
+
+    @staticmethod
+    def pack_ip_address_list(lst: List[str]):
+        payload = b""
+        payload += len(lst).to_bytes(4, "big")
+        for ip in lst:
+            payload += len(ip).to_bytes(4, "big")
+            payload += ip.encode()
+
+        return payload
+
+    def stop(self):
+        self.stop_ = False
+
+    async def worker(self):
+        print("IP reporter process started!")
+        print(f"Using IP List: {get_self_ip()}")
+        while not self.stop_:
+            await asyncio.sleep(1)
+            IPReporter.send_ip()
+
+        print("IP reporter process stopped!")
+
+
 @asynccontextmanager
 async def start_server(app: FastAPI):
-    print("lifespan!")
-    server = UDPServer("0.0.0.0", 8001)
-    await server.start()
+    server_receiver = UDPServer("0.0.0.0", 8001)
+    server_receiver.mark_as_primary()
+    asyncio.create_task(server_receiver.worker())
+
+    reporter = IPReporter()
+    asyncio.create_task(reporter.worker())
 
     try:
         yield
     finally:
-        await server.stop()
+        await server_receiver.stop()
+        reporter.stop()
 
 
 app = FastAPI(lifespan=start_server)
