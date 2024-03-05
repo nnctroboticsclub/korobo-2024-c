@@ -20,8 +20,8 @@ class PID {
   Node<T> output_;
 
  public:
-  PID(T kP = 0, T kI = 0, T kD = 0) : integral_(0), prev_error_(0) {
-    gains.SetValue(PIDGains(kP, kI, kD));
+  PID(T kG, T kP, T kI, T kD) : integral_(0), prev_error_(0) {
+    gains.SetValue(PIDGains(kG, kP, kI, kD));
   }
 
   void Update(T dt) {
@@ -35,7 +35,8 @@ class PID {
     T derivative = (error - prev_error_) / dt;
     prev_error_ = error;
 
-    T output = value.p * error + value.i * integral_ + value.d * derivative;
+    T output = value.g *
+               (value.p * error + value.i * integral_ + value.d * derivative);
     output_.SetValue(output);
   }
 
