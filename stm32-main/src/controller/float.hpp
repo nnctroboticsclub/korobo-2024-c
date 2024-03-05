@@ -12,6 +12,11 @@ struct Float : public ControllerBase<float> {
   }
 
   void Parse(RawPacket const& packet) override {
+    if (packet.size() < 2) {
+      printf("Invalid packet size for Float (id: %d)\n", assigned_id_);
+      return;
+    }
+
     float value;
     value = (packet[0] << 8 | packet[1]) / 65536.0f;
 

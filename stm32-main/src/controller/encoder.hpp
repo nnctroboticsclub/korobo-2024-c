@@ -14,6 +14,11 @@ struct Encoder : public ControllerBase<T> {
   }
 
   void Parse(RawPacket const& packet) override {
+    if (packet.size() < 2) {
+      printf("Invalid packet size for Encoder (id: %d)\n", assigned_id_);
+      return;
+    }
+
     int16_t value_ = packet.data[0] << 8 | packet.data[1];
     T value = value_ * 360.0f / 0x7FFF;
 

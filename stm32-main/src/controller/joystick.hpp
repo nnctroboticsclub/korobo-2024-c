@@ -14,6 +14,11 @@ struct JoyStick : public ControllerBase<robotics::JoyStick2D> {
   }
 
   void Parse(RawPacket const& packet) override {
+    if (packet.size() < 2) {
+      printf("Invalid packet size for Joystick (id: %d)\n", assigned_id_);
+      return;
+    }
+
     robotics::JoyStick2D value;
     value[0] = (packet[0] - 128) / 127.0f;
     value[1] = (packet[1] - 128) / 127.0f;

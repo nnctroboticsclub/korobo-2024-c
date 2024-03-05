@@ -13,6 +13,11 @@ struct AngleJoystick2D : public ControllerBase<robotics::AngleStick2D> {
   }
 
   void Parse(RawPacket const& packet) override {
+    if (packet.size() < 2) {
+      printf("Invalid packet size for angle joystick (id: %d)\n", assigned_id_);
+      return;
+    }
+
     robotics::AngleStick2D value;
 
     value.magnitude = (float)packet[0] / 0xff;

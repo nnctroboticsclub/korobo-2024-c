@@ -18,6 +18,7 @@ struct PID : public ControllerBase<robotics::PIDGains> {
     if (packet.size() < 3) {
       printf("Invalid packet size for PID controller (id: %d)\n", assigned_id_);
     }
+
     robotics::PIDGains value;
     value.p = packet[0] / 255.0f * 10.0f;
     value.i = packet[1] / 255.0f * 10.0f;
