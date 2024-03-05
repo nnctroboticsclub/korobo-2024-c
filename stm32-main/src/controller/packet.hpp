@@ -11,6 +11,9 @@ struct RawPacket {
   RawPacketData data;
 
   RawPacket(RawPacketData const& raw_data) : element_id(raw_data[0]), data{} {
+    if (raw_data.size() < 1) {
+      return;
+    }
     data.reserve(raw_data.size() - 1);
     for (std::size_t i = 1; i < raw_data.size(); i++) {
       data.push_back(raw_data[i]);

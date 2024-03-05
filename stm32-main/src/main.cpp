@@ -57,9 +57,6 @@ class MDC {
 
   int Send() {
     auto ret = sender_.send();
-    if (ret == 0) {
-      printf("MDC: Sending the command is failed.\n");
-    }
     return ret;
   }
 
@@ -362,11 +359,15 @@ class App {
     this->driving_->Init();
     printf("\e[1;32m|\e[m \e[32m|\e[m \e[33m2\e[m Adding Handlers\n");
     can_.OnEvent(0x40, [this](std::vector<uint8_t> data) {  //
+      if (data.size() < 1) {
+        printf("C< Invaid (0 bytes)\n");
+        return;
+      }
       std::stringstream ss;
       for (auto byte : data) {
         ss << std::setw(2) << std::hex << (int)byte << " ";
       }
-      printf("C< %s\n", ss.str().c_str());
+      printf("C< %s(%d bytes)\n", ss.str().c_str(), data.size());
       controller_status_.Pass(data);
     });
     can_.OnEvent(0x61, [this](std::vector<uint8_t> data) {  //
@@ -501,58 +502,86 @@ int main_itm(int argc, char const *argv[]) {
   return 0;
 }
 
-int main_led() {
-  mbed::SPI serial(PB_5, PB_4, NC);
-  char buf[] = {
-      0x00, 0x00, 0x00,
+#include <ws2812B.hpp>
 
-      /* // COLOR 1
-      0x88,
-      0x00,
-      0x00,
-      0x44,
-      0x44,
-      0x00,
-      // COLOR 2
-      0x00,
-      0x88,
-      0x00,
-      0x00,
-      0x44,
-      0x44,
-      // COLOR 3
-      0x00,
-      0x00,
-      0x88,
-      0x00,
-      0x44,
-      0x44, */
+int main_led1() {
+  Mikami::WS2812B ws2812b(PB_5, false);
+  while (1) {
+    ws2812b.Reset();
+    ws2812b.Clear(7);
+    ws2812b.Write(0xff0000);
+    ws2812b.Write(0x00ff00);
+    ws2812b.Write(0x0000ff);
+    ws2812b.Write(0xff0000);
+    ws2812b.Write(0x00ff00);
+    ws2812b.Write(0x0000ff);
+    ws2812b.Write(0x000000);
+    ThisThread::sleep_for(100ms);
+  }
+}
+
+int main_led2() {
+  mbed::SPI serial(PB_5, NC, NC);
+  serial.frequency(6.4E6);
+
+  char buf[] = {
+      0xff, 0xff, 0xff,
+
+      0xff, 0xff, 0xff,
+
+      0xff, 0xff, 0xff,
+
+      0xff, 0xff, 0xff,
+
+      0xff, 0xff, 0xff,
+
+      0xff, 0xff, 0xff,
+
+      0xff, 0xff, 0xff,
   };
 
-  size_t data_len = 128 + 4 * sizeof(buf) * 4;
-  char *data = new char[data_len];
-  for (size_t i = 0; i < 128; i++) {
+  std::vector<char> reset;
+  reset.resize(48);
+  for (size_t i = 0; i < reset.size(); i++) {
+    reset[i] = 0;
+  }
+
+  const size_t data_len = 8 * sizeof(buf);  // 1byte = 8bit => 2byte
+  std::vector<char> data(data_len);
+  for (size_t i = 0; i < data_len; i++) {
     data[i] = 0;
   }
 
-  for (size_t k = 0; k < 4; k++) {
-    for (size_t i = 0; i < sizeof(buf); i++) {
-      for (size_t j = 0; j < 4; j++) {
-        data[128 + sizeof(buf) * 4 * k + (i) * 4 + j] =  //
-            (((buf[i] >> (7 - 2 * j)) & 1) ? 0xC : 0x8) << 4 |
-            (((buf[i] >> (7 - 2 * j - 1)) & 1) ? 0xC : 0x8);
-      }
+  for (size_t i = 0; i < sizeof(buf); i++) {
+    for (size_t j = 0; j < 8; j++) {
+      data[i * 8 + j] =  //
+          ((buf[i] >> (7 - j)) & 1) ? 0xF8 : 0xE0;
     }
   }
 
-  serial.frequency(3.2E6);
-  serial.write(data, data_len, data, data_len);
+  std::vector<char> payload;
+  payload.insert(payload.end(), reset.begin(), reset.end());
+  payload.insert(payload.end(), data.begin(), data.end());
+
+  for (size_t i = 0; i < payload.size(); i++) {
+    printf("%02x ", payload[i]);
+    if (i % 24 == 23) {
+      printf("\n");
+    }
+  }
+  printf("\n");
+
+  printf("Waiting for 1ms\n");
+  ThisThread::sleep_for(1ms);
+  printf("Sending\n");
+  serial.write(payload.data(), payload.size(), nullptr, 0);
+  printf("Sent\n");
 
   return 0;
 }
 
-int main() {
-  auto* can = new DistributedCAN(1, PB_8, PB_9, 1000000);
+int main_can() {
+  auto *can = new DistributedCAN(1, PB_8, PB_9, 1000000);
   printf("Init!\n");
   can->Init();
   printf("Setting up handlers\n");
@@ -572,19 +601,19 @@ int main() {
   });
 
   printf("Sending\n");
-  auto ret  = can->Send(0x00, {0x00, 0x01, 0x02});
+  auto ret = can->Send(0x00, {0x00, 0x01, 0x02});
   printf("Result = %d\n", ret);
   printf("Sending\n");
-   ret  = can->Send(0x00, {0x00, 0x01, 0x02});
+  ret = can->Send(0x00, {0x00, 0x01, 0x02});
   printf("Result = %d\n", ret);
   printf("Sending\n");
-   ret  = can->Send(0x00, {0x00, 0x01, 0x02});
+  ret = can->Send(0x00, {0x00, 0x01, 0x02});
   printf("Result = %d\n", ret);
   printf("Sending\n");
-   ret  = can->Send(0x00, {0x00, 0x01, 0x02});
+  ret = can->Send(0x00, {0x00, 0x01, 0x02});
   printf("Result = %d\n", ret);
   printf("Sending\n");
-   ret  = can->Send(0x00, {0x00, 0x01, 0x02});
+  ret = can->Send(0x00, {0x00, 0x01, 0x02});
   printf("Result = %d\n", ret);
 
   while (1) {
@@ -592,7 +621,7 @@ int main() {
   }
 }
 
-int main_pro(int argc, char const *argv[]) {
+int main(int argc, char const *argv[]) {
   printf("main() started CAN_ID=%d\n", CAN_ID);
 
   printf("Build information:\n");
