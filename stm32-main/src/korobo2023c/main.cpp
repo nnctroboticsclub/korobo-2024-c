@@ -6,179 +6,24 @@
 #include <vector>
 #include <sstream>
 
-#include "identify.h"
-#include "dcan.hpp"
+#include "../identify.h"
+#include "../dcan.hpp"
 #include "korobo2023c/2023c.hpp"
 
-#include "robotics/component/swerve/swerve.hpp"
-#include "robotics/sensor/gyro/bno055.hpp"
-#include "robotics/node/BLDC.hpp"
-#include "robotics/types/angle_joystick_2d.hpp"
-#include "robotics/assembly/ikakoMDC.hpp"
-#include "robotics/assembly/dummy_motor_with_encoder.hpp"
+#include "../robotics/component/swerve/swerve.hpp"
+#include "../robotics/sensor/gyro/bno055.hpp"
+#include "../robotics/node/BLDC.hpp"
+#include "../robotics/types/angle_joystick_2d.hpp"
+#include "../robotics/assembly/ikakoMDC.hpp"
+#include "../robotics/assembly/dummy_motor_with_encoder.hpp"
 
-#include "./upper.hpp"
+#include "upper.hpp"
 
 using namespace std::chrono_literals;
 
 using namespace rtos;
 
 using robotics::filter::PID;
-
-class MDC {
-  ::ikakoMDC motors_[4];
-  ikakoMDC_sender sender_;
-  std::array<robotics::assembly::ikakoMDCPair<float>, 4> motor_nodes_;
-  ikarashiCAN_mk2 *linked_ican_;
-
-  robotics::assembly::DummyMotorWithEncoder<float> d;
-
- public:
-  MDC(ikarashiCAN_mk2 *can, int mdc_id)
-      : motors_{ikakoMDC(4 * (mdc_id - 1) + 1, -50, 50, 0.001, 0.0, 2.7, 0,
-                         0.000015, 0.01),
-                ikakoMDC(4 * (mdc_id - 1) + 2, -50, 50, 0.001, 0.0, 2.7, 0,
-                         0.000015, 0.01),
-                ikakoMDC(4 * (mdc_id - 1) + 3, -50, 50, 0.001, 0.0, 2.7, 0,
-                         0.000015, 0.01),
-                ikakoMDC(4 * (mdc_id - 1) + 4, -50, 50, 0.001, 0.0, 2.7, 0,
-                         0.000015, 0.01)},
-        sender_(motors_, 4, can, mdc_id),
-        motor_nodes_{motors_[0], motors_[1], motors_[2], motors_[3]},
-        linked_ican_(can) {}
-
-  void Tick() {
-    if (sender_.read_enc() && linked_ican_->get_read_flag()) {
-      for (size_t i = 0; i < 4; i++) {
-        motor_nodes_[i].Update();
-      }
-    }
-  }
-
-  int Send() {
-    auto ret = sender_.send();
-    return ret;
-  }
-
-  robotics::assembly::MotorWithEncoder<float> &GetNode(int index) {
-    return motor_nodes_[index];
-  }
-};
-
-class DrivingCANBus {
-  ikarashiCAN_mk2 *ican_;
-
- public:
-  MDC mdc0_;
-  MDC mdc1_;
-  MDC mdc2_;
-
-  DrivingCANBus(ikarashiCAN_mk2 *ican)
-      : ican_(ican), mdc0_(ican, 1), mdc1_(ican, 2), mdc2_(ican, 3) {}
-
-  void Init() { ican_->read_start(); }
-
-  void Tick() {
-    mdc0_.Tick();
-    mdc1_.Tick();
-    mdc2_.Tick();
-  }
-
-  void Send() {
-    mdc0_.Send();
-    mdc1_.Send();
-    mdc2_.Send();
-  }
-
-  robotics::assembly::MotorWithEncoder<float> &GetSwerveRot0() {
-    return mdc0_.GetNode(0);
-  }
-  robotics::assembly::MotorWithEncoder<float> &GetSwerveRot1() {
-    return mdc0_.GetNode(1);
-  }
-  robotics::assembly::MotorWithEncoder<float> &GetSwerveRot2() {
-    return mdc0_.GetNode(2);
-  }
-  robotics::assembly::MotorWithEncoder<float> &GetShotL() {
-    return mdc0_.GetNode(3);
-  }
-
-  robotics::assembly::MotorWithEncoder<float> &GetRevolver() {
-    return mdc1_.GetNode(0);
-  }
-  robotics::assembly::MotorWithEncoder<float> &GetLoad() {
-    return mdc1_.GetNode(1);
-  }
-  robotics::assembly::MotorWithEncoder<float> &GetHorizontal() {
-    return mdc1_.GetNode(2);
-  }
-  robotics::assembly::MotorWithEncoder<float> &GetElevation() {
-    return mdc1_.GetNode(3);
-  }
-
-  robotics::assembly::MotorWithEncoder<float> &GetShotR() {
-    return mdc2_.GetNode(0);
-  }
-};
-
-struct SwerveComponent {
-  robotics::component::Swerve swerve_;
-  controller::swerve::SwerveController &ctrl_;
-  controller::swerve::SwerveValueStore<float> &values_;
-
-  void Link_() {
-    ctrl_.angle_pid.Link(swerve_.angle.gains);
-    ctrl_.motor_0_pid.Link(swerve_.motors[0]->steer_.pid.gains);
-    ctrl_.motor_1_pid.Link(swerve_.motors[1]->steer_.pid.gains);
-    ctrl_.motor_2_pid.Link(swerve_.motors[2]->steer_.pid.gains);
-    ctrl_.move.Link(swerve_.move_ctrl);
-
-    ctrl_.angle_out.SetChangeCallback([this](robotics::AngleStick2D angle) {
-      swerve_.angle_ctrl.SetValue(angle.angle > 180 ? angle.angle - 360
-                                                    : angle.angle);
-    });
-    // gyro_.Link(swerve_.robot_angle);
-
-    ctrl_.rotation_pid_enabled.SetChangeCallback(
-        [this](bool enabled) { swerve_.SetAnglePID(enabled); });
-
-    // swerve fb link
-    values_.motor_0_encoder.Link(swerve_.motors[0]->steer_.feedback);
-    values_.motor_1_encoder.Link(swerve_.motors[1]->steer_.feedback);
-    values_.motor_2_encoder.Link(swerve_.motors[2]->steer_.feedback);
-  }
-
-  void ReportTo(DistributedCAN &can) {
-    std::vector<uint8_t> physical_report(8);
-    physical_report.reserve(8);
-    physical_report[0] = 0x00;
-
-    int i = 0;
-    for (auto &motor : swerve_.motors) {
-      auto angle_power = motor->steer_.output.GetValue();
-      auto mag = motor->drive_.GetValue();
-
-      physical_report[1 + i * 2] = (uint8_t)std::min((int)(mag * 255.0f), 255);
-      physical_report[2 + i * 2] =
-          (uint8_t)std::min((int)(angle_power * 255.0f), 255);
-
-      i++;
-    }
-    physical_report[7] = swerve_.robot_angle.GetValue() / 360.0 * 255;
-
-    auto ret = can.Send(0xa0, physical_report);
-    if (ret != 1) {
-      printf("Swerve Report: Sending the report is failed.\n");
-    }
-  }
-
-  SwerveComponent(robotics::component::Swerve::Config swerve_config,
-                  controller::swerve::SwerveController &b,
-                  controller::swerve::SwerveValueStore<float> &c)
-      : swerve_(swerve_config), ctrl_(b), values_(c) {
-    Link_();
-  }
-};
 
 class App {
  public:
