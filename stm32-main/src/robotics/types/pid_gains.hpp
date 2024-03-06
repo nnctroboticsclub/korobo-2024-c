@@ -15,12 +15,13 @@ struct PIDGains {
   PIDGains(float g, float p, float i, float d) : g(g), p(p), i(i), d(d) {}
 
   void Normalize() {
-    float max = std::max(std::abs(p), std::abs(i));
-    max = std::max(max, std::abs(d));
+    float x = p + i + d;
 
-    p /= max;
-    i /= max;
-    d /= max;
+    if (x == 0) return;
+
+    p /= x;
+    i /= x;
+    d /= x;
   }
 
   bool operator==(PIDGains const& other) const {

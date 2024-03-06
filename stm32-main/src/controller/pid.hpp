@@ -19,11 +19,14 @@ struct PID : public ControllerBase<robotics::PIDGains> {
       printf("Invalid packet size for PID controller (id: %d)\n", assigned_id_);
     }
 
-    robotics::PIDGains value;
+    robotics::PIDGains value = this->GetValue();
+
     value.p = packet[0] / 255.0f * 10.0f;
     value.i = packet[1] / 255.0f * 10.0f;
     value.d = packet[2] / 255.0f * 10.0f;
 
+    printf("PID[%d] P: %f I: %f D: %f\n", assigned_id_, value.p, value.i,
+           value.d);
     this->SetValue(value);
   }
 };

@@ -2,7 +2,6 @@
 
 #include <array>
 
-#include <ikakoMDC.h>
 #include <ikarashiCAN_mk2.h>
 
 #include "../robotics/assembly/ikakoMDC.hpp"

@@ -11,6 +11,11 @@ struct SwerveComponent {
   controller::swerve::SwerveValueStore<float> &values_;
 
   void Link_() {
+    ctrl_.angle_pid.SetValue(swerve_.angle.gains.GetValue());
+    ctrl_.motor_0_pid.SetValue(swerve_.motors[0]->steer_.pid.gains.GetValue());
+    ctrl_.motor_1_pid.SetValue(swerve_.motors[1]->steer_.pid.gains.GetValue());
+    ctrl_.motor_2_pid.SetValue(swerve_.motors[2]->steer_.pid.gains.GetValue());
+
     ctrl_.angle_pid.Link(swerve_.angle.gains);
     ctrl_.motor_0_pid.Link(swerve_.motors[0]->steer_.pid.gains);
     ctrl_.motor_1_pid.Link(swerve_.motors[1]->steer_.pid.gains);
@@ -39,12 +44,20 @@ struct SwerveComponent {
 
     int i = 0;
     for (auto &motor : swerve_.motors) {
-      auto angle_power = motor->steer_.output.GetValue();
+      auto angle = motor->steer_.goal.GetValue();
       auto mag = motor->drive_.GetValue();
+
+      while (angle > 360.0f) {
+        angle -= 360.0f;
+      }
+
+      while (angle < 0.0f) {
+        angle += 360.0f;
+      }
 
       physical_report[1 + i * 2] = (uint8_t)std::min((int)(mag * 255.0f), 255);
       physical_report[2 + i * 2] =
-          (uint8_t)std::min((int)(angle_power * 255.0f), 255);
+          (uint8_t)std::min((int)(angle / 360.0f * 255.0f), 255);
 
       i++;
     }
