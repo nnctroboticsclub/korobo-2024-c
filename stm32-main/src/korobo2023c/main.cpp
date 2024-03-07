@@ -103,14 +103,15 @@ class Communication {
   }
 
   void InitBLDC() {
-    SetStatus(DistributedCAN::Statuses::kInitializingESC);
     printf("\e[1;32m|\e[m \e[32m-\e[m Initializing ESC\n");
     printf("\e[1;32m|\e[m \e[32m|\e[m \e[33m-\e[m Pulsing Max Pulsewidth\n");
+    SetStatus(DistributedCAN::Statuses::kInitializingESC0);
     bldc[0].Init0();
     bldc[1].Init0();
     bldc[2].Init0();
     ThisThread::sleep_for(2s);
     printf("\e[1;32m|\e[m \e[32m|\e[m \e[33m-\e[m Pulsing Min Pulsewidth\n");
+    SetStatus(DistributedCAN::Statuses::kInitializingESC1);
     bldc[0].Init1();
     bldc[1].Init1();
     bldc[2].Init1();
@@ -180,7 +181,6 @@ class App {
 
     bool swerve_origin_setting;
     bool encoder_debug;
-    bool gain_debug;
   };
 
  private:
@@ -245,12 +245,6 @@ class App {
                  com_->value_store_.swerve.motor_0_encoder.GetValue(),
                  com_->value_store_.swerve.motor_1_encoder.GetValue(),
                  com_->value_store_.swerve.motor_2_encoder.GetValue());
-
-        if (config_.gain_debug)
-          printf("Rot Gain: %6.4lf %6.4lf %6.4lf\n",
-                 swerve_->swerve_.motors[0]->steer_.output.GetValue(),
-                 swerve_->swerve_.motors[1]->steer_.output.GetValue(),
-                 swerve_->swerve_.motors[2]->steer_.output.GetValue());
 
         i = 0;
       }
@@ -596,7 +590,6 @@ int main_pro() {
 
       .swerve_origin_setting = false,
       .encoder_debug = false,
-      .gain_debug = true,
   };
 
   printf("Ctor\n");
