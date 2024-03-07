@@ -105,6 +105,11 @@ class RoboTCPClient {
 
       buf.insert(buf.end(), chunk.begin(), chunk.end());
 
+      // ESP_LOG_BUFFER_HEXDUMP("TCP  <-", chunk.data(), chunk.size(),
+      // ESP_LOG_INFO);
+      // ESP_LOG_BUFFER_HEXDUMP("BUF  <-", buf.data(), buf.size(),
+      // ESP_LOG_INFO);
+
       auto ptr = buf.data();
       auto read_bytes = 0;
       while (buf.size() - read_bytes > 4) {
@@ -112,7 +117,7 @@ class RoboTCPClient {
         read_bytes += 4;
         ptr += 4;
 
-        if (length >= 0x20) {
+        if (length == 0 || length >= 0x20) {
           ESP_LOGE("RoboTCP", "Detected Malformed Data!!!");
           ESP_LOGE("RoboTCP", "Ignoring %d bytes", buf.size());
           read_bytes = buf.size();
