@@ -23,7 +23,7 @@ class SimpleCAN {
   std::vector<RxCallback> rx_callbacks_;
   std::vector<TxCallback> tx_callbacks_;
 
-  Thread thread_;
+  Thread *thread_;
 
   void ThreadMain() {
     CANMessage msg;
@@ -58,7 +58,10 @@ class SimpleCAN {
   SimpleCAN(PinName rx, PinName tx, int freqency = 50E3)
       : can_(rx, tx, freqency), freqency_(freqency) {}
 
-  void Init() { thread_.start(callback(this, &SimpleCAN::ThreadMain)); }
+  void Init() {
+    thread_ = new Thread(osPriorityNormal, 1024 * 4);
+    thread_->start(callback(this, &SimpleCAN::ThreadMain));
+  }
 
   void OnRx(RxCallback cb) { rx_callbacks_.emplace_back(cb); }
 
@@ -67,11 +70,12 @@ class SimpleCAN {
 
 class DistributedCAN {
  public:
-  enum class Statuses {
+  enum class Statuses: uint8_t {
     kReady = 0x00,
     kCANReady = 0x01,
-    kInitializingESC = 0x01,
-    kInitializingGyro = 0x02,
+    kInitializingESC0 = 0x02,
+    kInitializingESC1 = 0x03,
+    kInitializingGyro = 0x04,
   };
 
   struct EventCallback {
@@ -123,6 +127,12 @@ class DistributedCAN {
   }
 
   void SetStatus(Statuses status) {
-    Send(0x90, {static_cast<uint8_t>(status)});
+    std::vector<uint8_t> payload(4);
+    payload[0] = 0xf0;
+    payload[1] = (can_id >> 0x08) && 0xff;
+    payload[2] = (can_id >> 0x00) & 0xff;
+    payload[3] = static_cast<uint8_t>(status);
+
+    can_.Send(0xa0, payload);
   }
 };

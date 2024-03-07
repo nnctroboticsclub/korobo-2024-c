@@ -126,6 +126,12 @@ class DistributedCAN {
   }
 
   void SetStatus(Statuses status) {
-    Send(0x90, {static_cast<uint8_t>(status)});
+    std::vector<uint8_t> payload(4);
+    payload[0] = 0xf0;
+    payload[1] = (can_id >> 0x08) && 0xff;
+    payload[2] = (can_id >> 0x00) & 0xff;
+    payload[3] = static_cast<uint8_t>(status);
+
+    can_.Send(0xa0, payload);
   }
 };
