@@ -70,11 +70,12 @@ class SimpleCAN {
 
 class DistributedCAN {
  public:
-  enum class Statuses {
+  enum class Statuses : uint8_t {
     kReady = 0x00,
     kCANReady = 0x01,
-    kInitializingESC = 0x01,
-    kInitializingGyro = 0x02,
+    kInitializingESC0 = 0x02,
+    kInitializingESC1 = 0x03,
+    kInitializingGyro = 0x04,
   };
 
   struct EventCallback {

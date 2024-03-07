@@ -70,7 +70,7 @@ class SimpleCAN {
 
 class DistributedCAN {
  public:
-  enum class Statuses: uint8_t {
+  enum class Statuses : uint8_t {
     kReady = 0x00,
     kCANReady = 0x01,
     kInitializingESC0 = 0x02,
