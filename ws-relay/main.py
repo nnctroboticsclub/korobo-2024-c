@@ -54,18 +54,18 @@ class UDPServer:
     async def worker(self):
         buffer = b""
         while not self.stop_:
-            data, (host, port) = await self.recv_raw_message()
+            data, (_host, _port) = await self.recv_raw_message()
             buffer = buffer + data
 
             while len(buffer) > 4:
                 length = int.from_bytes(buffer[:4], "big")
                 buffer = buffer[4:]
-                print(f"{host}:{port} | {length:4d} | ", end="")
+                # print(f"{host}:{port} | {length:4d} | ", end="")
 
                 data = buffer[:length]
                 buffer = buffer[length:]
 
-                print(f"{data.hex()}")
+                # print(f"{data.hex()}")
                 for client in connected_clients:
                     try:
                         await client.send_bytes(data)
