@@ -54,7 +54,7 @@ d:
 	[ -e /usr/local/bin/websocat ] && sudo rm /usr/local/bin/websocat; true
 
 me:
-	cd /workspaces/korobo2023/esp32 && idf.py monitor
+	cd /workspaces/korobo2023/esp32 && ESPBAUD=960000 idf.py monitor
 
 # STM32@Main MCU
 
@@ -64,19 +64,23 @@ $(MNT1):
 $(MNT1)/MBED.HTM: $(MNT1)
 	sudo mount $(DEV1) $(MNT1) -o uid=1000,gid=1000
 
+S1BOARD := NUCLEO_F446RE
+
 cs1:
 	cd /workspaces/korobo2023/stm32-main && \
-		mbed compile --profile mbed-os/tools/profiles/debug.json -m NUCLEO_F767ZI
+		mbed compile -m $(S1BOARD)
 
-fs1: $(MNT1)/MBED.HTM
+stm32-main/BUILD/$(S1BOARD)/GCC_ARM/stm32-main.bin: cs1
+
+fs1: $(MNT1)/MBED.HTM stm32-main/BUILD/$(S1BOARD)/GCC_ARM/stm32-main.bin
 	cd /workspaces/korobo2023/stm32-main && \
-		sudo cp BUILD/*/GCC_ARM-DEBUG/stm32-main.bin $(MNT1)/binary.bin && \
+		sudo cp BUILD/$(S1BOARD)/GCC_ARM/stm32-main.bin $(MNT1)/binary.bin && \
 		sudo sync $(MNT1)/binary.bin
 
-ws1:
+ws1: stm32-main/BUILD/$(S1BOARD)/GCC_ARM/stm32-main.bin
 	./upload_flash.sh \
 		localhost:8011 \
-		stm32-main/BUILD/NUCLEO_F446RE/GCC_ARM-DEBUG/stm32-main.bin
+		stm32-main/BUILD/$(S1BOARD)/GCC_ARM/stm32-main.bin
 
 ms1:
 	cd /workspaces/korobo2023/stm32-main && \
@@ -87,7 +91,7 @@ ts1: cs1 fs1 ms1
 us1: cs1 fs1
 rs1: cs1 ws1
 a2r1:
-	addr2line -e /workspaces/korobo2023/stm32-main/BUILD/NUCLEO_F446RE/GCC_ARM-DEBUG/stm32-main.elf
+	addr2line -e /workspaces/korobo2023/stm32-main/BUILD/NUCLEO_F446RE/GCC_ARM/stm32-main.elf
 
 
 # STM32@Encoder MCU
@@ -136,9 +140,10 @@ lc:
 			-path *QEI2_os6* \
 			-o -path *ikakoMDC* \
 			-o -path ./stm32-main/bno055 \
+			-o -path ./esp32/build* \
 			-o -path *build* \
 			-o -path *ikarashiCAN_mk2* \
-			-o -path *BUILD/NUCLEO_F446RE* \
+			-o -path *BUILD/NUCLEO* \
 			-o -path *managed_components* \
 			-o -path *mbed-os* \
 		\) -a \

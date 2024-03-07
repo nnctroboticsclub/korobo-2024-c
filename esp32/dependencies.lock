@@ -23,12 +23,12 @@ dependencies:
       type: idf
     version: 5.2.0
   nnctroboticsclub/libstm-ota:
-    component_hash: 35384703867557268a5eba21a7938b25c8ab3f0a3ccfb6fa398377dee5f70d9d
+    component_hash: 85657d37d756ec45d0cd08087317344ba93315d1ebf85ab3d71bd925962bfc6c
     source:
       git: ssh://git@github.com/nnctroboticsclub/libstm-ota.git
       path: .
       type: git
-    version: 2d0595c98ad3a487a6aca8a74fc0050f96d2e2f3
+    version: ed7f42a19f1dc18561835510dc6445aa826d9776
   nnctroboticsclub/stream-base:
     component_hash: a855f54e26f7d503d858baff5c0a8ccc152a84225540a32c6b2c5793970ca2dc
     source:
@@ -43,6 +43,6 @@ dependencies:
       path: .
       type: git
     version: f05cf8c8043760830fe5faeb9e994e1e1b4379e2
-manifest_hash: 9e06a9e0926c339ca6a6f0123ed223a086849bcd45d6d1088fa656692b594602
+manifest_hash: a4932a9dce3b3a07c76658009e076c5568962807db56db9d46acc2842a7dc68e
 target: esp32
 version: 1.0.0
