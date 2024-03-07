@@ -117,6 +117,10 @@ class App {
         [this](uint8_t device) { this->SendCANtoRoboWs(0xff, {device}); });
 
     can_.OnMessage(0xa0, [this](uint32_t id, std::vector<uint8_t> const& data) {
+      if (data.size() < 1) {
+        ESP_LOGW("Manager", "CAN message 0xa0 has no payload.");
+        return;
+      }
       uint32_t msg_id = data[0];
       std::vector<uint8_t> payload(data.begin() + 1, data.end());
       this->SendCANtoRoboWs(msg_id, payload);
