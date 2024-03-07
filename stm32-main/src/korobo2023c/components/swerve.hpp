@@ -10,6 +10,8 @@ struct SwerveComponent {
   controller::swerve::SwerveController &ctrl_;
   controller::swerve::SwerveValueStore<float> &values_;
 
+  int report_counter = 0;
+
   void Link_() {
     ctrl_.angle_pid.SetValue(swerve_.angle.gains.GetValue());
     ctrl_.motor_0_pid.SetValue(swerve_.motors[0]->steer_.pid.gains.GetValue());
@@ -37,7 +39,38 @@ struct SwerveComponent {
     values_.motor_2_encoder.Link(swerve_.motors[2]->steer_.feedback);
   }
 
-  void ReportTo(DistributedCAN &can) {
+  void ReportMotor(DistributedCAN &can, int index) {
+    std::vector<uint8_t> report(7);
+    report.reserve(7);
+    report[0] = 0x20 | index;
+    report[1] =
+        std::min((int)(swerve_.motors[index]->steer_.pid.gains.GetValue().p /
+                       10.0f * 255.0f),
+                 255);
+    report[2] =
+        std::min((int)(swerve_.motors[index]->steer_.pid.gains.GetValue().i /
+                       10.0f * 255.0f),
+                 255);
+    report[3] =
+        std::min((int)(swerve_.motors[index]->steer_.pid.gains.GetValue().d /
+                       10.0f * 255.0f),
+                 255);
+    report[4] =
+        std::min((int)(swerve_.motors[index]->steer_.pid.fb_.GetValue() /
+                       360.0f * 255.0f),
+                 255);
+    report[5] = std::min(
+        (int)((swerve_.motors[index]->steer_.pid.output_.GetValue() / 2 + 0.5) *
+              255.0f),
+        255);
+
+    auto ret = can.Send(0xa0, report);
+    if (ret != 1) {
+      printf("Swerve Report: Sending the report is failed.\n");
+    }
+  }
+
+  void ReportSwerve(DistributedCAN &can) {
     std::vector<uint8_t> physical_report(8);
     physical_report.reserve(8);
     physical_report[0] = 0x00;
@@ -66,6 +99,19 @@ struct SwerveComponent {
     auto ret = can.Send(0xa0, physical_report);
     if (ret != 1) {
       printf("Swerve Report: Sending the report is failed.\n");
+    }
+  }
+
+  void ReportTo(DistributedCAN &can) {
+    if (report_counter == 0) {
+      ReportMotor(can, 0);
+      ReportSwerve(can);
+      report_counter++;
+    } else if (report_counter == 1) {
+      ReportMotor(can, 1);
+      ReportMotor(can, 2);
+      // report_counter++;
+      report_counter = 0;
     }
   }
 
