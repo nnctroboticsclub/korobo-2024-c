@@ -83,7 +83,7 @@ class Communication {
       for (auto byte : data) {
         ss << std::setw(2) << std::hex << (int)byte << " ";
       }
-      printf("C< %s(%d bytes)\n", ss.str().c_str(), data.size());
+      // printf("C< %s(%d bytes)\n", ss.str().c_str(), data.size());
       controller_status_.Pass(data);
     });
     can_.OnEvent(0x61, [this](std::vector<uint8_t> data) {  //
