@@ -59,10 +59,11 @@ struct SwerveComponent {
         std::min((int)(swerve_.motors[index]->steer_.pid.fb_.GetValue() /
                        360.0f * 255.0f),
                  255);
-    report[5] = std::min(
-        (int)((swerve_.motors[index]->steer_.pid.output_.GetValue() / 2 + 0.5) *
-              255.0f),
-        255);
+
+    auto output = swerve_.motors[index]->steer_.pid.output_.GetValue();
+    output = std::min(std::max(output, -1.0f), 1.0f);
+
+    report[5] = (output / 2 + 0.5) * 255.0f;
 
     auto ret = can.Send(0xa0, report);
     if (ret != 1) {
