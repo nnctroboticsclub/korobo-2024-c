@@ -18,7 +18,11 @@ class Joystick2Angle {
       AngleStick2D angle_vector;
 
       angle_vector.magnitude = vector.Magnitude();
-      angle_vector.angle = std::atan2(vector[1], vector[0]) * 180 / M_PI;
+
+      if (angle_vector.magnitude < 0.05)
+        angle_vector.angle = 0;
+      else
+        angle_vector.angle = std::atan2(vector[1], vector[0]) * 180 / M_PI;
 
       out.SetValue(angle_vector);
     });
