@@ -122,4 +122,6 @@ struct SwerveComponent {
       : swerve_(swerve_config), ctrl_(b), values_(c) {
     Link_();
   }
+
+  void Reset() { swerve_.Reset(); }
 };

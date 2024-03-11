@@ -34,7 +34,7 @@ class App {
         .stm32bls = {InitConfig::STM32BL{
             .id = 1,
             .spi_port_id = 2,
-            .cs = GPIO_NUM_27,
+            .cs = GPIO_NUM_5,
         }},
         .stm32s = {InitConfig::STM32{
             .id = 2,
