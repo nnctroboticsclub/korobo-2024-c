@@ -14,18 +14,13 @@ class BLDC : public Motor<float> {
   void SetSpeed(float speed) override {
     if (status != Status::Ready) return;
 
-    if (speed < 0) {
-      // ESC ussualy doesn't support negative speed.
-      pwmout_.pulsewidth_us(min_pulsewidth_);
-    }
+    // ESC ussualy doesn't support negative speed.
+    if (speed < 0) speed = 0;
 
-    if (speed > 1) {
-      // multiply 0.95 for safe
-      pwmout_.pulsewidth_us(max_pulsewidth_ * 0.95);
-    }
+    if (speed > 1) speed = 1;
 
     pwmout_.pulsewidth_us(min_pulsewidth_ +
-                          (max_pulsewidth_ - min_pulsewidth_) * (speed * 0.5));
+                          (max_pulsewidth_ - min_pulsewidth_) * (speed * 0.25));
   }
 
  public:
