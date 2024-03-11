@@ -30,7 +30,7 @@ class Swerve {
 
   std::array<Motor*, 3> motors;  // for injection
 
-  filter::PID<float> angle{0.1f, 1.0f, 0.0f, 0.0f};  // robot angle pid
+  filter::PID<float> angle{1.0f, 1.0f, 0.0f, 0.0f};  // robot angle pid
  private:
   filter::AngleNormalizer<float> rot_in_normalizer;  // ctrl angle normalizer
   filter::AngleNormalizer<float>
@@ -79,6 +79,15 @@ class Swerve {
     } else {
       rot_power_muxer.Select(1);
     }
+  }
+
+  void Reset() {
+    for (auto motor : motors) {
+      motor->Reset();
+    }
+
+    rot_in_normalizer.Reset();
+    self_rot_y_normalizer.Reset();
   }
 };
 }  // namespace swerve
