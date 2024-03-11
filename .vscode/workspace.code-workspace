@@ -14,7 +14,7 @@
 		},
 		{
 			"path": "../../libstm-ota"
-		}
+		},
 	],
 	"settings": {
 		"files.associations": {

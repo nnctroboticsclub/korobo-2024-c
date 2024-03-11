@@ -3,8 +3,8 @@
 # SER1: STM32@Main MCU device serial number
 # SER2: STM32@Encoder MCU device serial number
 
-# SER1    = 066BFF303435554157043738
-SER1    = 0670FF3932504E3043102150 # F747
+SER1    = 066BFF303435554157043738
+# SER1    = 0670FF3932504E3043102150 # F747
 SER2    = 0668FF383333554157243840
 
 
@@ -30,6 +30,42 @@ ACM2    = /dev/$(shell basename ${_ACM2})
 MNT1    = /mnt/st1
 MNT2    = /mnt/st2
 
+# The ip points localhost. its usually forwarded from VPN.
+ESP32_IP ?= localhost:8011
+
+# ESP32 ip address accessed by VPN
+REMOTE_ESP32_IP ?= 192.168.0.6
+
+# VPN SSH Address
+VPN_SSH := syoch@100.69.175.93
+
+# VPN Commands
+
+# [VPN] Deploy Ws-relay
+vdw:
+	scp ws-relay/main.py $(VPN_SSH):/home/syoch/ws-relay/main.py
+	scp ws-relay/log-reader.py $(VPN_SSH):/home/syoch/ws-relay/log-reader.py
+	scp ws-relay/tag-lister.py $(VPN_SSH):/home/syoch/ws-relay/tag-lister.py
+	scp ws-relay/requirements.txt $(VPN_SSH):/home/syoch/ws-relay/requirements.txt
+
+# [VPN] ForWarD
+vfwd:
+	ssh \
+		-gL 8011:$(REMOTE_ESP32_IP):80 \
+		-gL 8012:localhost:8000 \
+		$(VPN_SSH)
+
+# [VPN] Start SSH Connection
+vpn:
+	ssh $(VPN_SSH)
+
+
+# [Init] Container
+i_c:
+	sudo apt update
+	sudo apt install -y tmux
+
+# [Init] General
 i:
 	[ ! -e /usr/local/bin/websocat ] && sudo cp /workspaces/korobo2023/websocat.x86_64-unknown-linux-musl /usr/local/bin/websocat; true
 
@@ -38,10 +74,14 @@ i:
 
 	[ -z $${IDF_PATH+x} ] && exec bash -c ". /opt/esp-idf/export.sh; exec bash"; true
 
+
+# [Init] Mbed
 im:
 	cd stm32-main; mbed deploy
 
-dns:
+
+# [Init]
+id:
 	sudo bash -c 'echo nameserver 8.8.8.8 > /etc/resolv.conf'
 
 d:
@@ -53,8 +93,13 @@ d:
 
 	[ -e /usr/local/bin/websocat ] && sudo rm /usr/local/bin/websocat; true
 
+# ESP32
+
 me:
 	cd /workspaces/korobo2023/esp32 && ESPBAUD=960000 idf.py monitor
+
+mew:
+	ESP32_IP=$(ESP32_IP) python3 /workspaces/korobo2023/ws-relay/log-reader.py "ESP32"
 
 # STM32@Main MCU
 
@@ -65,31 +110,42 @@ $(MNT1)/MBED.HTM: $(MNT1)
 	sudo mount $(DEV1) $(MNT1) -o uid=1000,gid=1000
 
 S1BOARD := NUCLEO_F446RE
+S1_BIN := stm32-main/BUILD/$(S1BOARD)/GCC_ARM/stm32-main.bin
+S1_TAG := "SerialProxy (UART: 1)"
+S1_SKIP_COMPILE ?= 0
 
-cs1:
+.PHONY: $(S1_BIN)
+ifeq ($(S1_SKIP_COMPILE), 1)
+$(S1_BIN):
+	@echo "Skipped Compile"
+else
+$(S1_BIN):
 	cd /workspaces/korobo2023/stm32-main && \
 		mbed compile -m $(S1BOARD)
+endif
 
-stm32-main/BUILD/$(S1BOARD)/GCC_ARM/stm32-main.bin: cs1
+cs1: $(S1_BIN)
 
-fs1: $(MNT1)/MBED.HTM stm32-main/BUILD/$(S1BOARD)/GCC_ARM/stm32-main.bin
+fs1: $(MNT1)/MBED.HTM $(S1_BIN)
 	cd /workspaces/korobo2023/stm32-main && \
 		sudo cp BUILD/$(S1BOARD)/GCC_ARM/stm32-main.bin $(MNT1)/binary.bin && \
 		sudo sync $(MNT1)/binary.bin
 
-ws1: stm32-main/BUILD/$(S1BOARD)/GCC_ARM/stm32-main.bin
-	./upload_flash.sh \
-		localhost:8011 \
-		stm32-main/BUILD/$(S1BOARD)/GCC_ARM/stm32-main.bin
+fs1w: $(S1_BIN)
+	./upload_flash.sh $(ESP32_IP) $(S1_BIN)
+
+rs1w:
+	curl -X POST $(ESP32_IP)/api/stm32/reset
 
 ms1:
 	cd /workspaces/korobo2023/stm32-main && \
 		mbed sterm --port $(ACM1)
 
+ms1w:
+	ESP32_IP=$(ESP32_IP) python3 /workspaces/korobo2023/ws-relay/log-reader.py $(S1_TAG)
 
-ts1: cs1 fs1 ms1
-us1: cs1 fs1
-rs1: cs1 ws1
+
+ts1: fs1 ms1
 a2r1:
 	addr2line -e /workspaces/korobo2023/stm32-main/BUILD/NUCLEO_F446RE/GCC_ARM/stm32-main.elf
 

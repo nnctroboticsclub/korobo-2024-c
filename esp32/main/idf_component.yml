@@ -5,7 +5,7 @@ dependencies:
     version: ">=4.1.0"
 
   nnctroboticsclub/libstm-ota:
-    git: ssh://git@github.com/nnctroboticsclub/libstm-ota.git
+    path: /workspaces/libstm-ota
 
   ok-home/logic-analyzer:
     git: git@github.com:ok-home/logic_analyzer.git
