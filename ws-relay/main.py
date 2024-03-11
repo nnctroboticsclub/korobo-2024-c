@@ -34,6 +34,7 @@ class UDPServer:
     def mark_as_primary(self):
         global server
 
+        print("Marked as primary server!")
         server = self.socket
 
     async def recv_raw_message(self):
@@ -52,6 +53,7 @@ class UDPServer:
         return data, (host, port)
 
     async def worker(self):
+        print("Server started!")
         buffer = b""
         while not self.stop_:
             data, (_host, _port) = await self.recv_raw_message()
@@ -122,18 +124,18 @@ class IPReporter:
 
 @asynccontextmanager
 async def start_server(app: FastAPI):
-    server_receiver = UDPServer("0.0.0.0", 8001)
+    server_receiver = UDPServer("", 8001)
     server_receiver.mark_as_primary()
     asyncio.create_task(server_receiver.worker())
 
-    reporter = IPReporter()
-    asyncio.create_task(reporter.worker())
+    # reporter = IPReporter()
+    # asyncio.create_task(reporter.worker())
 
     try:
         yield
     finally:
         await server_receiver.stop()
-        reporter.stop()
+        # reporter.stop()
 
 
 app = FastAPI(lifespan=start_server)
