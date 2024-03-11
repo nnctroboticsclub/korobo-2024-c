@@ -26,7 +26,12 @@ class Motor {
 
   void UpdateAnglePower() {
     auto rot = rotation.GetValue();
-    auto vel = velocity.GetValue();
+    auto vel_ = velocity.GetValue();
+
+    Vector<float, 2> vel{
+        -vel_[1],
+        -vel_[0],
+    };
 
     auto vector_ = vel + normal_vector_ * rot / 90;
     vector.SetValue(vector_);
@@ -59,6 +64,8 @@ class Motor {
   Motor& operator=(Motor&&) = default;
 
   void Update(float dt) { this->steer_.Update(dt); }
+
+  void Reset() { this->steer_.Reset(); }
 };
 
 }  // namespace robotics::component::swerve

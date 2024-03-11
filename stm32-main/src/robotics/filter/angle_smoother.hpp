@@ -31,5 +31,10 @@ class AngleNormalizer {
       output.SetValue(value);
     });
   }
+
+  void Reset() {
+    prev_input = 0;
+    value = 0;
+  }
 };
 }  // namespace robotics::filter

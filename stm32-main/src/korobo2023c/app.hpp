@@ -184,6 +184,8 @@ class App {
     com_->Init();
     if (config_.swerve_origin_setting) InitSwerveOrigin();
 
+    this->swerve_->Reset();
+
     printf("\e[1;32m+\e[m   \e[33m+\e[m\n");
 
     com_->SetStatus(DistributedCAN::Statuses::kReady);

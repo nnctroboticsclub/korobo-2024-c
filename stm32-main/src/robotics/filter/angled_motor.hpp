@@ -31,5 +31,10 @@ class AngledMotor {
   }
 
   void Update(float dt) { pid.Update(dt); }
+
+  void Reset() {
+    feedback_normalizer.Reset();
+    goal_normalizer.Reset();
+  }
 };
 }  // namespace robotics::filter
