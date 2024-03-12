@@ -135,21 +135,26 @@ int main_pro() {
                       .tx = PB_6,
                   },
               .controller_ids =
-                  {.swerve =
-                       (controller::swerve::SwerveController::Config){
-                           .joystick_id = 0,
-                           .rot_right_45_id = 0,
-                           .rot_left_45_id = 1,
-                           .rotation_pid_enabled_id = 1,
-                           .motor_0_pid_id = 0,
-                           .motor_1_pid_id = 1,
-                           .motor_2_pid_id = 2,
-                           .angle_pid_id = 3,
-                       },
-                   .shot_joystick_id = 2,
-                   .do_shot_id = 2,
-                   .shot_speed_id = 0,
-                   .max_elevation_id = 1},
+                  {
+                      .swerve =
+                          (controller::swerve::SwerveController::Config){
+                              .joystick_id = 0,
+                              .rot_right_45_id = 0,
+                              .rot_left_45_id = 1,
+                              .rotation_pid_enabled_id = 1,
+                              .motor_0_pid_id = 0,
+                              .motor_1_pid_id = 1,
+                              .motor_2_pid_id = 2,
+                              .angle_pid_id = 3,
+                          },
+                      .shot_joystick_id = 2,
+                      .do_shot_id = 2,
+                      .shot_speed_id = 0,
+                      .max_elevation_id = 1,
+                      .esc_factor_0_id = 2,
+                      .esc_factor_1_id = 3,
+                      .esc_factor_2_id = 4,
+                  },
               .value_store_ids =
                   {.swerve =
                        (controller::swerve::SwerveValueStore<float>::Config){

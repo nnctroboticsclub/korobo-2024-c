@@ -139,14 +139,17 @@ class Communication {
   void LinkToSwerve(SwerveComponent &swerve) {
     gyro_.Link(swerve.swerve_.robot_angle);
 
+    controller_status_.esc_factor_0.Link(bldc[0].factor);
     swerve.swerve_.motors[0]->drive_.Link(bldc[0]);
     swerve.swerve_.motors[0]->steer_.output.Link(
         driving_->GetSwerveRot0().GetMotor());
 
+    controller_status_.esc_factor_1.Link(bldc[1].factor);
     swerve.swerve_.motors[1]->drive_.Link(bldc[1]);
     swerve.swerve_.motors[1]->steer_.output.Link(
         driving_->GetSwerveRot1().GetMotor());
 
+    controller_status_.esc_factor_2.Link(bldc[2].factor);
     swerve.swerve_.motors[2]->drive_.Link(bldc[2]);
     swerve.swerve_.motors[2]->steer_.output.Link(
         driving_->GetSwerveRot2().GetMotor());

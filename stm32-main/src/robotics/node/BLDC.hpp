@@ -20,7 +20,7 @@ class BLDC : public Motor<float> {
     if (speed > 1) speed = 1;
 
     pwmout_.pulsewidth_us(min_pulsewidth_ +
-                          (max_pulsewidth_ - min_pulsewidth_) * (speed * 0.25));
+                          (max_pulsewidth_ - min_pulsewidth_) * (speed));
   }
 
  public:
@@ -31,6 +31,9 @@ class BLDC : public Motor<float> {
         status(Status::Initialized) {
     pwmout_.period_us(2000);
     pwmout_.pulsewidth_us(0);
+
+    SetValue(0);
+    factor.SetValue(0.25);
   }
 
   void Init0() {
