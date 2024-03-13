@@ -7,6 +7,7 @@
 #include "controller/encoder.hpp"
 #include "controller/swerve.hpp"
 #include "controller/float.hpp"
+#include "controller/action.hpp"
 
 namespace korobo::n2023c {
 struct Controller {
@@ -20,6 +21,8 @@ struct Controller {
     int esc_factor_0_id;
     int esc_factor_1_id;
     int esc_factor_2_id;
+
+    int revolver_change_id;
   };
 
   controller::swerve::SwerveController swerve;
@@ -30,6 +33,7 @@ struct Controller {
   controller::Float esc_factor_0;
   controller::Float esc_factor_1;
   controller::Float esc_factor_2;
+  controller::Action revolver_change;
 
   Controller(Config const& config = {})
       : swerve(config.swerve),
@@ -39,7 +43,8 @@ struct Controller {
         max_elevation(config.max_elevation_id),
         esc_factor_0(config.esc_factor_0_id),
         esc_factor_1(config.esc_factor_1_id),
-        esc_factor_2(config.esc_factor_2_id) {}
+        esc_factor_2(config.esc_factor_2_id),
+        revolver_change(config.revolver_change_id) {}
 
   bool Pass(controller::RawPacket const& packet) {
     return swerve.Pass(packet) || shot.Pass(packet) || do_shot.Pass(packet) ||

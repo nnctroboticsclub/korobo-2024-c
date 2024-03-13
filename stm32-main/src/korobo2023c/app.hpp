@@ -128,6 +128,16 @@ class App {
           upper_.SetRotationAngle(x[0]);
           upper_.SetElevationAngle(x[1]);
         });
+    com_->controller_status_.do_shot.SetChangeCallback([this](bool shot) {
+      if (shot) {
+        upper_.Shot();
+      } else {
+        upper_.ShotStop();
+      }
+    });
+
+    com_->controller_status_.revolver_change.OnFire(
+        [this]() { upper_.RevolverChange(); });
   }
 
   void InitSwerveOrigin() {
