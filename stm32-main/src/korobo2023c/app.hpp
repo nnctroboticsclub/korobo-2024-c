@@ -138,6 +138,21 @@ class App {
 
     com_->controller_status_.revolver_change.OnFire(
         [this]() { upper_.RevolverChange(); });
+
+    com_->controller_status_.steer_0_inverse.OnFire([this]() {
+      com_->value_store_.swerve.motor_0_encoder.inv =
+          !com_->value_store_.swerve.motor_0_encoder.inv;
+    });
+
+    com_->controller_status_.steer_1_inverse.OnFire([this]() {
+      com_->value_store_.swerve.motor_1_encoder.inv =
+          !com_->value_store_.swerve.motor_1_encoder.inv;
+    });
+
+    com_->controller_status_.steer_2_inverse.OnFire([this]() {
+      com_->value_store_.swerve.motor_2_encoder.inv =
+          !com_->value_store_.swerve.motor_2_encoder.inv;
+    });
   }
 
   void InitSwerveOrigin() {
