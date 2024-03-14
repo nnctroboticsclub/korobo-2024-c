@@ -7,6 +7,8 @@
 #include "../robotics/assembly/ikakoMDC.hpp"
 #include "../robotics/assembly/dummy_motor_with_encoder.hpp"
 
+#include "../../dcan.hpp"
+
 class MDC {
   ::ikakoMDC motors_[4];
   ikakoMDC_sender sender_;
@@ -40,6 +42,30 @@ class MDC {
   int Send() {
     auto ret = sender_.send();
     return ret;
+  }
+
+  void ReportTo(DistributedCAN &can, uint8_t id) {
+    std::vector<uint8_t> report(5);
+    report.reserve(5);
+
+    report[0] = 0x30 | id;
+    report[1] =
+        std::clamp(motor_nodes_[0].GetMotor().GetSpeed(), -1.0f, 1.0f) * 127 +
+        128;
+    report[2] =
+        std::clamp(motor_nodes_[1].GetMotor().GetSpeed(), -1.0f, 1.0f) * 127 +
+        128;
+    report[3] =
+        std::clamp(motor_nodes_[2].GetMotor().GetSpeed(), -1.0f, 1.0f) * 127 +
+        128;
+    report[4] =
+        std::clamp(motor_nodes_[3].GetMotor().GetSpeed(), -1.0f, 1.0f) * 127 +
+        128;
+
+    auto ret = can.Send(0xa0, report);
+    if (ret != 1) {
+      printf("MDC Report: Sending the report is failed. (id: %d)\n", id);
+    }
   }
 
   robotics::assembly::MotorWithEncoder<float> &GetNode(int index) {
