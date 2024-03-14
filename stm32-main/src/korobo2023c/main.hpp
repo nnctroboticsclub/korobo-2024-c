@@ -23,7 +23,7 @@ int main_led2() {
   mbed::SPI serial(PB_5, NC, NC);
   serial.frequency(6.4E6);
 
-  char buf[] = {
+  int buf[] = {
       0xff, 0xff, 0xff,
 
       0xff, 0xff, 0xff,
@@ -196,7 +196,7 @@ int main_pro() {
   return 0;
 }
 
-int main() {
+int main_switch() {
   printf("main() started CAN_ID=%d\n", CAN_ID);
 
   printf("Build information:\n");
