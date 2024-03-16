@@ -15,6 +15,7 @@ struct Controller {
     controller::swerve::SwerveController::Config swerve;
     uint8_t shot_joystick_id;
     uint8_t do_shot_id;
+    uint8_t soft_emc_id;
     uint8_t shot_speed_id;
     uint8_t max_elevation_id;
 
@@ -31,6 +32,7 @@ struct Controller {
 
   controller::swerve::SwerveController swerve;
   controller::JoyStick shot;
+  controller::Boolean soft_emc;
   controller::Boolean do_shot;
   controller::Float shot_speed;
   controller::Float max_elevation;
@@ -46,6 +48,7 @@ struct Controller {
   Controller(Config const& config = {})
       : swerve(config.swerve),
         shot(config.shot_joystick_id),
+        soft_emc(config.soft_emc_id),
         do_shot(config.do_shot_id),
         shot_speed(config.shot_speed_id),
         max_elevation(config.max_elevation_id),
@@ -58,10 +61,10 @@ struct Controller {
         steer_2_inverse(config.steer_2_inverse_id) {}
 
   bool Pass(controller::RawPacket const& packet) {
-    return swerve.Pass(packet) || shot.Pass(packet) || do_shot.Pass(packet) ||
-           shot_speed.Pass(packet) || max_elevation.Pass(packet) ||
-           esc_factor_0.Pass(packet) || esc_factor_1.Pass(packet) ||
-           esc_factor_2.Pass(packet);
+    return swerve.Pass(packet) || shot.Pass(packet) || soft_emc.Pass(packet) ||
+           do_shot.Pass(packet) || shot_speed.Pass(packet) ||
+           max_elevation.Pass(packet) || esc_factor_0.Pass(packet) ||
+           esc_factor_1.Pass(packet) || esc_factor_2.Pass(packet);
   }
 };
 
