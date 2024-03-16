@@ -3,7 +3,7 @@
 # SER1: STM32@Main MCU device serial number
 # SER2: STM32@Encoder MCU device serial number
 
-SER1    = 066BFF303435554157043738
+SER1    = 0673FF333535554157151415
 # SER1    = 0670FF3932504E3043102150 # F747
 SER2    = 0668FF383333554157243840
 
@@ -43,16 +43,23 @@ VPN_SSH := syoch@100.69.175.93
 
 # [VPN] Deploy Ws-relay
 vdw:
-	scp ws-relay/main.py $(VPN_SSH):/home/syoch/ws-relay/main.py
-	scp ws-relay/log-reader.py $(VPN_SSH):/home/syoch/ws-relay/log-reader.py
-	scp ws-relay/tag-lister.py $(VPN_SSH):/home/syoch/ws-relay/tag-lister.py
-	scp ws-relay/requirements.txt $(VPN_SSH):/home/syoch/ws-relay/requirements.txt
+	scp ws-relay/main.py \
+			ws-relay/log-reader.py \
+			ws-relay/tag-lister.py \
+			ws-relay/requirements.txt \
+			$(VPN_SSH):/home/syoch/ws-relay/
 
 # [VPN] ForWarD
 vfwd:
 	ssh \
 		-gL 8011:$(REMOTE_ESP32_IP):80 \
 		-gL 8012:localhost:8000 \
+		$(VPN_SSH)
+
+# [VPN] Reverse ForWarD
+vrfwd:
+	ssh \
+		-gR 0.0.0.0:8050:localhost:8080 \
 		$(VPN_SSH)
 
 # [VPN] Start SSH Connection
@@ -126,6 +133,30 @@ endif
 
 cs1: $(S1_BIN)
 
+cs1t:
+	g++ \
+	  -I ./emu/stm32 \
+		$(addprefix -I, $(shell find /workspaces/korobo2023/stm32-main \
+			-not -path *mbed-os* -a \
+			-not -path *BUILD* -a \
+			-not -path *.git* -a \
+			-not -path *.hg* -a \
+			-not -path *src* -a \
+			-type d \
+		)) \
+		$(shell find /workspaces/korobo2023/stm32-main/src \
+			\( \
+				-name *.c -o \
+				-name *.cpp \
+			\) -a \
+			-not -path \*mbed-os\* \
+		) \
+		$(shell find /workspaces/korobo2023/emu/stm32 \
+			-name *.c -o \
+			-name *.cpp \
+		) \
+		-o stm32-main.elf
+
 fs1: $(MNT1)/MBED.HTM $(S1_BIN)
 	cd /workspaces/korobo2023/stm32-main && \
 		sudo cp BUILD/$(S1BOARD)/GCC_ARM/stm32-main.bin $(MNT1)/binary.bin && \
@@ -191,24 +222,10 @@ ws:
 	watch -n 1 ls /mnt/st*
 
 lc:
-	wc -l $$(find . \
-		-not \( \
-			-path *QEI2_os6* \
-			-o -path *ikakoMDC* \
-			-o -path ./stm32-main/bno055 \
-			-o -path ./esp32/build* \
-			-o -path *build* \
-			-o -path *ikarashiCAN_mk2* \
-			-o -path *BUILD/NUCLEO* \
-			-o -path *managed_components* \
-			-o -path *mbed-os* \
-		\) -a \
-		\( \
-			-name *.hpp \
-			-o -name *.cpp \
-			-o -name *.c \
-			-o -name *.h \
-		\))
+	wc -l \
+		$$(find ./stm32-main/src -type f) \
+		$$(find ./stm32-main/src -type f)
+
 
 # Tmux
 

@@ -25,6 +25,7 @@ class UDPServer:
         self.host = host
         self.port = port
 
+        print(f"Binding to {host}:{port}")
         self.socket.bind((self.host, self.port))
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
         self.socket.setblocking(False)
@@ -124,7 +125,10 @@ class IPReporter:
 
 @asynccontextmanager
 async def start_server(app: FastAPI):
-    server_receiver = UDPServer("", 8001)
+    import os
+    udp_host = os.environ.get("UDP_BRD_HOST", "0.0.0.0")
+
+    server_receiver = UDPServer(udp_host, 8001)
     server_receiver.mark_as_primary()
     asyncio.create_task(server_receiver.worker())
 
