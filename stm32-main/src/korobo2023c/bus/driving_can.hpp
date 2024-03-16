@@ -4,9 +4,11 @@
 #include "../../robotics/assembly/motor_with_encoder.hpp"
 
 #include "../mdc.hpp"
+#include "../../dcan.hpp"
 
 class DrivingCANBus {
   ikarashiCAN_mk2 *ican_;
+  int report_counter = 0;
 
  public:
   MDC mdc0_;
@@ -30,6 +32,21 @@ class DrivingCANBus {
     mdc2_.Send();
   }
 
+  void ReportTo(DistributedCAN &can) {
+    switch (report_counter) {
+      case 0:
+        mdc0_.ReportTo(can, 0);
+        break;
+      case 1:
+        mdc1_.ReportTo(can, 1);
+        break;
+      case 2:
+        mdc2_.ReportTo(can, 2);
+        break;
+    }
+    report_counter = (report_counter + 1) % 3;
+  }
+
   robotics::assembly::MotorWithEncoder<float> &GetSwerveRot0() {
     return mdc0_.GetNode(0);
   }
@@ -39,14 +56,14 @@ class DrivingCANBus {
   robotics::assembly::MotorWithEncoder<float> &GetSwerveRot2() {
     return mdc0_.GetNode(2);
   }
-  robotics::assembly::MotorWithEncoder<float> &GetShotL() {
+  robotics::assembly::MotorWithEncoder<float> &GetRevolver() {
     return mdc0_.GetNode(3);
   }
 
-  robotics::assembly::MotorWithEncoder<float> &GetRevolver() {
+  robotics::assembly::MotorWithEncoder<float> &GetShotR() {
     return mdc1_.GetNode(0);
   }
-  robotics::assembly::MotorWithEncoder<float> &GetLoad() {
+  robotics::assembly::MotorWithEncoder<float> &GetShotL() {
     return mdc1_.GetNode(1);
   }
   robotics::assembly::MotorWithEncoder<float> &GetHorizontal() {
@@ -56,7 +73,7 @@ class DrivingCANBus {
     return mdc1_.GetNode(3);
   }
 
-  robotics::assembly::MotorWithEncoder<float> &GetShotR() {
+  robotics::assembly::MotorWithEncoder<float> &GetLoad() {
     return mdc2_.GetNode(0);
   }
 };
