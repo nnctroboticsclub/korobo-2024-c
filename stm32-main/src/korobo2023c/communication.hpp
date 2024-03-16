@@ -48,6 +48,8 @@ class Communication {
   robotics::sensor::gyro::BNO055 gyro_;
   robotics::node::BLDC bldc[3];
 
+  int report_counter;
+
  private:
   void InitCAN() {
     printf("\e[1;32m|\e[m \e[32m-\e[m Initializing CAN (Com)\n");
@@ -98,6 +100,21 @@ class Communication {
     bldc[2].Init1();
     ThisThread::sleep_for(1s);
     printf("\e[1;32m|\e[m \e[32m|\e[m \e[33m-\e[m OK\n");
+  }
+
+  void ReportBLDC() {
+    std::vector<uint8_t> report(4);
+    report.reserve(4);
+
+    report[0] = 0x30 | 0x08;
+    report[1] = std::max(std::min(bldc[0].GetSpeed(), 1.0f), -1.0f) * 127 + 128;
+    report[2] = std::max(std::min(bldc[1].GetSpeed(), 1.0f), -1.0f) * 127 + 128;
+    report[3] = std::max(std::min(bldc[2].GetSpeed(), 1.0f), -1.0f) * 127 + 128;
+
+    auto ret = can_.Send(0xa0, report);
+    if (ret != 1) {
+      printf("COM Report: Sending the BLDC report is failed. (opcode: 0x38)\n");
+    }
   }
 
  public:
@@ -153,5 +170,19 @@ class Communication {
     swerve.swerve_.motors[2]->drive_.Link(bldc[2]);
     swerve.swerve_.motors[2]->steer_.output.Link(
         driving_->GetSwerveRot2().GetMotor());
+  }
+
+  void Report() {
+    switch (report_counter) {
+      case 0:
+        ReportBLDC();
+        break;
+      case 1:
+      case 2:
+      case 3:
+        driving_->ReportTo(can_);
+        break;
+    }
+    report_counter = (report_counter + 1) % 4;
   }
 };

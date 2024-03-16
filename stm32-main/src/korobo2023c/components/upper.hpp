@@ -9,6 +9,7 @@ namespace korobo2023c {
 using PID = robotics::filter::PID<float>;
 using AngledMotor = robotics::filter::AngledMotor<float>;
 using IncAngledMotor = robotics::filter::IncAngledMotor<float>;
+using Motor = robotics::node::Motor<float>;
 
 template <typename T>
 using Node = robotics::Node<T>;
@@ -26,8 +27,16 @@ class Upper {
   bool in_shot = 0;
 
  public:
+  void Update(float dt) {
+    elevation_motor.Update(dt);
+    rotation_motor.Update(dt);
+    revolver.Update(dt);
+  }
+
   // 仰角
   void SetElevationAngle(float angle) {
+    elevation_motor.goal.SetValue(angle/*  > max_elevation_angle ? max_elevation_angle
+                                                         : angle */);
     elevation_motor.goal.SetValue(
         angle > max_elevation_angle ? max_elevation_angle : angle);
   }
@@ -35,9 +44,9 @@ class Upper {
   // 最大仰角
   void SetMaxElevationAngle(float angle) {
     max_elevation_angle = angle;
-    if (elevation_motor.goal.GetValue() > angle) {
+    /* if (elevation_motor.goal.GetValue() > angle) {
       elevation_motor.goal.SetValue(angle);
-    }
+    } */
   }
 
   // 横の角

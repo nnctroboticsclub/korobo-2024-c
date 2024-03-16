@@ -9,7 +9,7 @@ namespace robotics::filter {
 template <typename T>
 class IncAngledMotor {
  public:
-  filter::PID<float> pid{1.0f / 360, 2.5f, 0.5f, 2.0f};
+  filter::PID<float> pid{1.0f / 360, 3.3f, 0.5f, 2.0f};
 
   Node<T> encoder;
   Node<T> output;

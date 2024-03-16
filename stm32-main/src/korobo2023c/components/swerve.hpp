@@ -104,16 +104,22 @@ struct SwerveComponent {
   }
 
   void ReportTo(DistributedCAN &can) {
-    if (report_counter == 0) {
-      ReportMotor(can, 0);
-      ReportSwerve(can);
-      report_counter++;
-    } else if (report_counter == 1) {
-      ReportMotor(can, 1);
-      ReportMotor(can, 2);
-      // report_counter++;
-      report_counter = 0;
+    switch (report_counter) {
+      case 0:
+        ReportSwerve(can);
+        break;
+      case 1:
+        ReportMotor(can, 0);
+        break;
+      case 2:
+        ReportMotor(can, 1);
+        break;
+      case 3:
+        ReportMotor(can, 2);
+        break;
     }
+
+    report_counter = (report_counter + 1) % 4;
   }
 
   SwerveComponent(robotics::component::Swerve::Config swerve_config,

@@ -8,7 +8,7 @@ int main(int argc, char const *argv[]) {
     out = 1;
     ThisThread::sleep_for(100ms);
     out = 0;
-    ThisThread::sleep_for(100ms);
+    ThisThread::sleep_for(100ms);\
   } */
   return 0;
 }

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <algorithm>
 
 #include <ikarashiCAN_mk2.h>
 
@@ -16,6 +17,60 @@ class MDC {
   ikarashiCAN_mk2 *linked_ican_;
 
   robotics::assembly::DummyMotorWithEncoder<float> d;
+
+  int report_counter = 0;
+
+  void ReportSpeed(DistributedCAN &can, uint8_t id) {
+    std::vector<uint8_t> report(5);
+    report.reserve(5);
+
+    report[0] = 0x30 | id;
+    report[1] =
+        std::max(std::min(motor_nodes_[0].GetMotor().GetSpeed(), 1.0f), -1.0f) *
+            127 +
+        128;
+    report[2] =
+        std::max(std::min(motor_nodes_[1].GetMotor().GetSpeed(), 1.0f), -1.0f) *
+            127 +
+        128;
+    report[3] =
+        std::max(std::min(motor_nodes_[2].GetMotor().GetSpeed(), 1.0f), -1.0f) *
+            127 +
+        128;
+    report[4] =
+        std::max(std::min(motor_nodes_[3].GetMotor().GetSpeed(), 1.0f), -1.0f) *
+            127 +
+        128;
+
+    auto ret = can.Send(0xa0, report);
+    if (ret != 1) {
+      printf("MDC Report: Sending the report is failed. (id: %d)\n", id);
+    }
+  }
+
+  void ReportEncoder(DistributedCAN &can, uint8_t id) {
+    std::vector<uint8_t> report(5);
+    report.reserve(5);
+
+    report[0] = 0x40 | id;
+    report[1] = std::max(
+        std::min(motor_nodes_[0].GetEncoder().GetValue() + 128.0f, 255.0f),
+        0.0f);
+    report[2] = std::max(
+        std::min(motor_nodes_[1].GetEncoder().GetValue() + 128.0f, 255.0f),
+        0.0f);
+    report[3] = std::max(
+        std::min(motor_nodes_[2].GetEncoder().GetValue() + 128.0f, 255.0f),
+        0.0f);
+    report[4] = std::max(
+        std::min(motor_nodes_[3].GetEncoder().GetValue() + 128.0f, 255.0f),
+        0.0f);
+
+    auto ret = can.Send(0xa0, report);
+    if (ret != 1) {
+      printf("MDC Report: Sending the report is failed. (id: %d)\n", id);
+    }
+  }
 
  public:
   MDC(ikarashiCAN_mk2 *can, int mdc_id)
@@ -39,33 +94,21 @@ class MDC {
     }
   }
 
+  void ReportTo(DistributedCAN &can, uint8_t id) {
+    switch (report_counter) {
+      case 0:
+        ReportSpeed(can, id);
+        break;
+      case 1:
+        ReportEncoder(can, id);
+        break;
+    }
+    report_counter = (report_counter + 1) % 2;
+  }
+
   int Send() {
     auto ret = sender_.send();
     return ret;
-  }
-
-  void ReportTo(DistributedCAN &can, uint8_t id) {
-    std::vector<uint8_t> report(5);
-    report.reserve(5);
-
-    report[0] = 0x30 | id;
-    report[1] =
-        std::clamp(motor_nodes_[0].GetMotor().GetSpeed(), -1.0f, 1.0f) * 127 +
-        128;
-    report[2] =
-        std::clamp(motor_nodes_[1].GetMotor().GetSpeed(), -1.0f, 1.0f) * 127 +
-        128;
-    report[3] =
-        std::clamp(motor_nodes_[2].GetMotor().GetSpeed(), -1.0f, 1.0f) * 127 +
-        128;
-    report[4] =
-        std::clamp(motor_nodes_[3].GetMotor().GetSpeed(), -1.0f, 1.0f) * 127 +
-        128;
-
-    auto ret = can.Send(0xa0, report);
-    if (ret != 1) {
-      printf("MDC Report: Sending the report is failed. (id: %d)\n", id);
-    }
   }
 
   robotics::assembly::MotorWithEncoder<float> &GetNode(int index) {

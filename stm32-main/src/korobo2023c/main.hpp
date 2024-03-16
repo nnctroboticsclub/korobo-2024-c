@@ -4,19 +4,15 @@
 #include "../identify.h"
 #include "app.hpp"
 
-int main_led1() {
-  Mikami::WS2812B ws2812b(PB_5, false);
+int main_mi() {
+  ikakoMDC mdc{1, -50, 50, 0.001, 0.0, 2.7, 0, 0.000015, 0.01};
+  ikarashiCAN_mk2 can{PB_5, PB_6, 0};
+  mdc.set_speed(80);
+
+  ikakoMDC_sender send{&mdc, 1, &can, 1};
   while (1) {
-    ws2812b.Reset();
-    ws2812b.Clear(7);
-    ws2812b.Write(0xff0000);
-    ws2812b.Write(0x00ff00);
-    ws2812b.Write(0x0000ff);
-    ws2812b.Write(0xff0000);
-    ws2812b.Write(0x00ff00);
-    ws2812b.Write(0x0000ff);
-    ws2812b.Write(0x000000);
-    ThisThread::sleep_for(100ms);
+    printf("send(): %d\n", send.send());
+    ThisThread::sleep_for(500ms);
   }
 }
 int main_led2() {
@@ -178,8 +174,7 @@ int main_pro() {
           },
 
       .swerve_config = {.angle_offsets = {0, 120, 240}},
-
-      .swerve_origin_setting = true,
+      .swerve_origin_setting = false,
       .encoder_debug = false,
   };
 
@@ -205,7 +200,7 @@ int main_switch() {
   printf("  - Analytics:\n");
   printf("    - sizeof(App): %d\n", sizeof(App));
 
-  // main_led1();
+  // main_mi();
   // main_led2();
   // main_can();
   main_pro();

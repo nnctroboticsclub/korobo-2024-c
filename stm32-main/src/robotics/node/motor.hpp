@@ -15,13 +15,7 @@ class Motor : public Node<T> {
    */
   virtual void SetSpeed(T speed) = 0;
 
-  void Update() {
-    auto factor_value = factor.GetValue();
-    auto speed = this->GetValue();
-    auto effective_speed = factor_value * speed;
-
-    SetSpeed(effective_speed);
-  }
+  void Update() { SetSpeed(GetSpeed()); }
 
  public:
   Motor() {
@@ -29,6 +23,14 @@ class Motor : public Node<T> {
 
     this->SetChangeCallback([this](T value) { this->Update(); });
     factor.SetChangeCallback([this](T value) { this->Update(); });
+  }
+
+  T GetSpeed() {
+    auto factor_value = factor.GetValue();
+    auto speed = this->GetValue();
+    auto effective_speed = factor_value * speed;
+
+    return effective_speed;
   }
 };
 }  // namespace robotics::node

@@ -38,6 +38,7 @@ class App {
 
   void DoReport() {
     swerve_->ReportTo(com_->can_);
+    com_->Report();
 
     std::vector<uint8_t> pid_report(5);
     pid_report.reserve(5);
@@ -69,6 +70,7 @@ class App {
       if (!prevent_swerve_update) {
         swerve_->swerve_.Update(0.01f);
       }
+      upper_.Update(0.01f);
       if (i % 10 == 0) {  // interval: 100ms = 0.100s
         DoReport();
 
@@ -100,11 +102,14 @@ class App {
 
     {
       auto &motor = com_->driving_->GetElevation();
+      // upper_.elevation_motor.Link(motor.GetMotor());
       motor.GetEncoder() >> upper_.elevation_motor.feedback;
       upper_.elevation_motor.output >> motor.GetMotor();
+      motor.GetMotor().factor.SetValue(1);
     }
     {
       auto &motor = com_->driving_->GetHorizontal();
+      // upper_.elevation_motor.Link(motor.GetMotor());
       motor.GetEncoder() >> upper_.rotation_motor.feedback;
       upper_.rotation_motor.output >> motor.GetMotor();
     }
