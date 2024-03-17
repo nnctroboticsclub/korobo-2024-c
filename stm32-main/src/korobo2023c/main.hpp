@@ -1,8 +1,9 @@
 #include <mbed.h>
-#include <ws2812B.hpp>
 
 #include "../identify.h"
 #include "app.hpp"
+
+#include "neopixel.hpp"
 
 int main_mi() {
   ikakoMDC mdc{1, -50, 50, 0.001, 0.0, 2.7, 0, 0.000015, 0.01};
@@ -15,62 +16,28 @@ int main_mi() {
     ThisThread::sleep_for(500ms);
   }
 }
-int main_led2() {
-  mbed::SPI serial(PB_5, NC, NC);
-  serial.frequency(6.4E6);
 
-  int buf[] = {
-      0xff, 0xff, 0xff,
+int main_2() {
+  NeoPixel led(PB_2, 7);
 
-      0xff, 0xff, 0xff,
+  int i = 0;
 
-      0xff, 0xff, 0xff,
+  while (1) {
+    led.Clear();
 
-      0xff, 0xff, 0xff,
+    led.PutPixel((7 + i + 0) % 7, 0x0C0000);
+    led.PutPixel((7 + i + 1) % 7, 0x0A0000);
+    led.PutPixel((7 + i + 2) % 7, 0x080000);
+    led.PutPixel((7 + i + 3) % 7, 0x060000);
+    led.PutPixel((7 + i + 4) % 7, 0x040000);
+    led.PutPixel((7 + i + 5) % 7, 0x020000);
+    led.PutPixel((7 + i + 6) % 7, 0x000000);
 
-      0xff, 0xff, 0xff,
+    led.Write();
 
-      0xff, 0xff, 0xff,
-
-      0xff, 0xff, 0xff,
-  };
-
-  std::vector<char> reset;
-  reset.resize(48);
-  for (size_t i = 0; i < reset.size(); i++) {
-    reset[i] = 0;
+    ThisThread::sleep_for(50ms);
+    i++;
   }
-
-  const size_t data_len = 8 * sizeof(buf);  // 1byte = 8bit => 2byte
-  std::vector<char> data(data_len);
-  for (size_t i = 0; i < data_len; i++) {
-    data[i] = 0;
-  }
-
-  for (size_t i = 0; i < sizeof(buf); i++) {
-    for (size_t j = 0; j < 8; j++) {
-      data[i * 8 + j] =  //
-          ((buf[i] >> (7 - j)) & 1) ? 0xF8 : 0xE0;
-    }
-  }
-
-  std::vector<char> payload;
-  payload.insert(payload.end(), reset.begin(), reset.end());
-  payload.insert(payload.end(), data.begin(), data.end());
-
-  for (size_t i = 0; i < payload.size(); i++) {
-    printf("%02x ", payload[i]);
-    if (i % 24 == 23) {
-      printf("\n");
-    }
-  }
-  printf("\n");
-
-  printf("Waiting for 1ms\n");
-  ThisThread::sleep_for(1ms);
-  printf("Sending\n");
-  serial.write(payload.data(), payload.size(), nullptr, 0);
-  printf("Sent\n");
 
   return 0;
 }
@@ -159,6 +126,8 @@ int main_pro() {
                       .steer_2_inverse_id = 5,
                       .elevation_pid_id = 4,
                       .rotation_pid_id = 5,
+                      .shot_l_factor_id = 6,
+                      .shot_r_factor_id = 7,
                   },
               .value_store_ids =
                   {.swerve =
@@ -210,8 +179,8 @@ int main_switch() {
   printf("    - sizeof(App): %d\n", sizeof(App));
 
   // main_mi();
-  // main_led2();
+  main_2();
   // main_can();
-  main_pro();
+  // main_pro();
   return 0;
 }

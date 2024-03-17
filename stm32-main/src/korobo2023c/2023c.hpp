@@ -33,6 +33,8 @@ struct Controller {
 
     uint8_t elevation_pid_id;
     uint8_t rotation_pid_id;
+    uint8_t shot_l_factor_id;
+    uint8_t shot_r_factor_id;
   };
 
   controller::swerve::SwerveController swerve;
@@ -52,8 +54,10 @@ struct Controller {
   controller::Action steer_1_inverse;
   controller::Action steer_2_inverse;
 
-  controller::PID elevation_pid;  // upper
-  controller::PID rotation_pid;   // upper
+  controller::PID elevation_pid;    // upper
+  controller::PID rotation_pid;     // upper
+  controller::Float shot_l_factor;  // upper
+  controller::Float shot_r_factor;  // upper
 
   Controller(Config const& config = {})
       : swerve(config.swerve),
@@ -72,17 +76,22 @@ struct Controller {
         steer_1_inverse(config.steer_1_inverse_id),
         steer_2_inverse(config.steer_2_inverse_id),
         elevation_pid(config.elevation_pid_id),
-        rotation_pid(config.rotation_pid_id) {}
+        rotation_pid(config.rotation_pid_id),
+        shot_l_factor(config.shot_l_factor_id),
+        shot_r_factor(config.shot_r_factor_id)
+
+  {}
 
   bool Pass(controller::RawPacket const& packet) {
     return swerve.Pass(packet) || shot.Pass(packet) || soft_emc.Pass(packet) ||
-           do_shot.Pass(packet) || do_load.Pass(packet)|| shot_speed.Pass(packet) ||
-            load_speed.Pass(packet) ||
+           do_shot.Pass(packet) || do_load.Pass(packet) ||
+           shot_speed.Pass(packet) || load_speed.Pass(packet) ||
            max_elevation.Pass(packet) || esc_factor_0.Pass(packet) ||
            esc_factor_1.Pass(packet) || esc_factor_2.Pass(packet) ||
            revolver_change.Pass(packet) || steer_0_inverse.Pass(packet) ||
            steer_1_inverse.Pass(packet) || steer_2_inverse.Pass(packet) ||
-           elevation_pid.Pass(packet) || rotation_pid.Pass(packet);
+           elevation_pid.Pass(packet) || rotation_pid.Pass(packet) ||
+           shot_l_factor.Pass(packet) || shot_r_factor.Pass(packet);
   }
 };
 

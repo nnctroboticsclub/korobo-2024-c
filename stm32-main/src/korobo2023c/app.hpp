@@ -124,6 +124,11 @@ class App {
       upper_.load >> motor.GetMotor();
     }
 
+    com_->controller_status_.shot_l_factor.Link(
+        com_->driving_->GetShotL().GetMotor().factor);
+    com_->controller_status_.shot_r_factor.Link(
+        com_->driving_->GetShotR().GetMotor().factor);
+
     upper_.shot.SetChangeCallback([this](float speed) {
       com_->driving_->GetShotL().GetMotor().SetValue(speed);
       com_->driving_->GetShotR().GetMotor().SetValue(-speed);
@@ -151,10 +156,10 @@ class App {
         upper_.ShotStop();
       }
     });
-    com_->controller_status_.do_load.SetChangeCallback(
-        [this](bool load) {
-          printf("[Ctrl::Upper] Set LoadState -> %d\n", load);
-          upper_.SetLoadState(load); });
+    com_->controller_status_.do_load.SetChangeCallback([this](bool load) {
+      printf("[Ctrl::Upper] Set LoadState -> %d\n", load);
+      upper_.SetLoadState(load);
+    });
     com_->controller_status_.load_speed.Link(upper_.load_speed);
 
     com_->controller_status_.revolver_change.OnFire(
