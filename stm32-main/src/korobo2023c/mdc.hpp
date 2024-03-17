@@ -68,7 +68,8 @@ class MDC {
 
     auto ret = can.Send(0xa0, report);
     if (ret != 1) {
-      printf("MDC Report: Sending the report is failed. (id: %d)\n", id);
+      printf("MDC Report: Sending the encoder report is failed. (id: %d)\n",
+             id);
     }
   }
 

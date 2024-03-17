@@ -30,7 +30,7 @@ class ikakoMDCEncoder : public Node<T> {
 
   void UpdateNode() {
     if (!mdc_) return;
-    this->SetValue((float)mdc_->get_enc());
+    this->SetValue((float)mdc_->get_enc() / 200);
   }
 };
 

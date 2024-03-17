@@ -71,6 +71,7 @@ class App {
         swerve_->swerve_.Update(0.01f);
       }
       upper_.Update(0.01f);
+
       if (i % 10 == 0) {  // interval: 100ms = 0.100s
         DoReport();
 
@@ -118,6 +119,11 @@ class App {
       motor.GetEncoder() >> upper_.revolver.encoder;
       upper_.revolver.output >> motor.GetMotor();
     }
+    {
+      auto &motor = com_->driving_->GetLoad();
+      upper_.load >> motor.GetMotor();
+    }
+
     upper_.shot.SetChangeCallback([this](float speed) {
       com_->driving_->GetShotL().GetMotor().SetValue(speed);
       com_->driving_->GetShotR().GetMotor().SetValue(-speed);
@@ -130,9 +136,14 @@ class App {
     com_->controller_status_.shot.SetChangeCallback(
         [this](robotics::JoyStick2D x) {
           printf("U< %6.4f %6.4f\n", x[0], x[1]);
-          upper_.SetRotationAngle(x[0]);
-          upper_.SetElevationAngle(x[1]);
+          upper_.SetRotationAngle(x[0] * 60);
+          upper_.SetElevationAngle(x[1] * 60);
         });
+
+    com_->controller_status_.elevation_pid.Link(
+        upper_.elevation_motor.pid.gains);
+    com_->controller_status_.rotation_pid.Link(upper_.rotation_motor.pid.gains);
+
     com_->controller_status_.do_shot.SetChangeCallback([this](bool shot) {
       if (shot) {
         upper_.Shot();
@@ -140,6 +151,11 @@ class App {
         upper_.ShotStop();
       }
     });
+    com_->controller_status_.do_load.SetChangeCallback(
+        [this](bool load) {
+          printf("[Ctrl::Upper] Set LoadState -> %d\n", load);
+          upper_.SetLoadState(load); });
+    com_->controller_status_.load_speed.Link(upper_.load_speed);
 
     com_->controller_status_.revolver_change.OnFire(
         [this]() { upper_.RevolverChange(); });
@@ -157,6 +173,11 @@ class App {
     com_->controller_status_.steer_2_inverse.OnFire([this]() {
       com_->value_store_.swerve.motor_2_encoder.inv =
           !com_->value_store_.swerve.motor_2_encoder.inv;
+    });
+
+    com_->controller_status_.soft_emc.SetChangeCallback([this](bool emc) {
+      printf("EMC setted to %d\n", emc);
+      this->emc = !emc;
     });
   }
 
