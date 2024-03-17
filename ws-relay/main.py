@@ -25,7 +25,7 @@ class UDPServer:
         self.host = host
         self.port = port
 
-        print(f"Binding to {host}:{port}")
+        print(f"[UDP Server] Binding to {host}:{port}")
         self.socket.bind((self.host, self.port))
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
         self.socket.setblocking(False)
@@ -35,7 +35,7 @@ class UDPServer:
     def mark_as_primary(self):
         global server
 
-        print("Marked as primary server!")
+        print("[UDP Server] Marked as primary server!")
         server = self.socket
 
     async def recv_raw_message(self):
@@ -54,7 +54,7 @@ class UDPServer:
         return data, (host, port)
 
     async def worker(self):
-        print("Server started!")
+        print("[UDP Server] Server started!")
         buffer = b""
         while not self.stop_:
             data, (_host, _port) = await self.recv_raw_message()
@@ -63,7 +63,7 @@ class UDPServer:
             while len(buffer) > 4:
                 length = int.from_bytes(buffer[:4], "big")
                 buffer = buffer[4:]
-                # print(f"{host}:{port} | {length:4d} | ", end="")
+                # print(f"[UDP Server] {host}:{port} | {length:4d} | ", end="")
 
                 data = buffer[:length]
                 buffer = buffer[length:]
@@ -76,9 +76,9 @@ class UDPServer:
                         pass
 
             if buffer:
-                print(f"==> remain: {buffer.hex()}")
+                print(f"[UDP Server] ==> remain: {buffer.hex()}")
 
-        print("Server stopped!")
+        print("[UDP Server] Server stopped!")
 
     async def stop(self):
         self.stop_ = 1
@@ -177,5 +177,8 @@ async def client_handler(websocket: WebSocket):
 
 if __name__ == "__main__":
     import uvicorn
+    import os
 
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn_host = os.environ.get("UVICORN_HOST", "0.0.0.0")
+
+    uvicorn.run("main:app", host=uvicorn_host, port=8000, reload=True)
