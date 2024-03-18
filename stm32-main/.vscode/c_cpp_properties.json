@@ -10,7 +10,7 @@
                 "${workspaceFolder}/ikarashiCAN_mk2",
                 "${workspaceFolder}/ikakoMDC/lpf",
                 "${workspaceFolder}/ikakoMDC/PID",
-                "${workspaceFolder}/mock",
+                "${workspaceFolder}/NeoStrip",
                 "${workspaceFolder}/mbed-os/targets/TARGET_STM/TARGET_STM32F7/TARGET_STM32F767xI/TARGET_NUCLEO_F767ZI"
             ],
             "defines": [
