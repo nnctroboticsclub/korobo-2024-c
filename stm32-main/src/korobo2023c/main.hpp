@@ -156,9 +156,9 @@ int main_pro() {
           },
 
       .swerve_config = {.angle_offsets = {0, 120, 240}},
-      .swerve_origin_setting = false,
+      .swerve_origin_setting = true,
       .encoder_debug = false,
-  };
+      .can1_debug = false};
 
   printf("Ctor\n");
   App app(config);

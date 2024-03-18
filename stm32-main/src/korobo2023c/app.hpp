@@ -17,6 +17,8 @@ class App {
 
     bool swerve_origin_setting;
     bool encoder_debug;
+
+    bool can1_debug;
   };
 
  private:
@@ -177,6 +179,7 @@ class App {
 
     emc = 1;
     com_->Init();
+    if (config_.can1_debug) com_->AddCAN1Debug();
     if (config_.swerve_origin_setting) InitSwerveOrigin();
 
     this->swerve_->Reset();
