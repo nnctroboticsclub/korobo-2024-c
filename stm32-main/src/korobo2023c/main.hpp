@@ -110,24 +110,28 @@ int main_pro() {
                               .motor_2_pid_id = 2,
                               .angle_pid_id = 3,
                           },
-                      .shot_joystick_id = 2,
+                      .upper =
+                          (korobo2023c::Upper::Controller::Config){
+                              .shot_joystick_id = 2,
+                              .do_shot_id = 2,
+                              .do_load_id = 4,
+                              .shot_speed_id = 0,
+                              .load_speed_id = 5,
+                              .max_elevation_id = 1,
+                              .revolver_change_id = 2,
+                              .elevation_pid_id = 4,
+                              .rotation_pid_id = 5,
+                              .shot_l_factor_id = 6,
+                              .shot_r_factor_id = 7,
+                          },
                       .soft_emc_id = 3,
-                      .do_shot_id = 2,
-                      .do_load_id = 4,
-                      .shot_speed_id = 0,
-                      .load_speed_id = 5,
-                      .max_elevation_id = 1,
                       .esc_factor_0_id = 2,
                       .esc_factor_1_id = 3,
                       .esc_factor_2_id = 4,
-                      .revolver_change_id = 2,
                       .steer_0_inverse_id = 3,
                       .steer_1_inverse_id = 4,
                       .steer_2_inverse_id = 5,
-                      .elevation_pid_id = 4,
-                      .rotation_pid_id = 5,
-                      .shot_l_factor_id = 6,
-                      .shot_r_factor_id = 7,
+
                   },
               .value_store_ids =
                   {.swerve =
@@ -179,8 +183,8 @@ int main_switch() {
   printf("    - sizeof(App): %d\n", sizeof(App));
 
   // main_mi();
-  main_2();
+  // main_2();
   // main_can();
-  // main_pro();
+  main_pro();
   return 0;
 }

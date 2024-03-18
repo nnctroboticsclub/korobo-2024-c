@@ -10,6 +10,7 @@ struct SwerveComponent {
   controller::swerve::SwerveController &ctrl_;
   controller::swerve::SwerveValueStore<float> &values_;
 
+ private:
   int report_counter = 0;
 
   void Link_() {
@@ -103,6 +104,14 @@ struct SwerveComponent {
     }
   }
 
+ public:
+  SwerveComponent(robotics::component::Swerve::Config swerve_config,
+                  controller::swerve::SwerveController &b,
+                  controller::swerve::SwerveValueStore<float> &c)
+      : swerve_(swerve_config), ctrl_(b), values_(c) {
+    Link_();
+  }
+
   void ReportTo(DistributedCAN &can) {
     switch (report_counter) {
       case 0:
@@ -120,13 +129,6 @@ struct SwerveComponent {
     }
 
     report_counter = (report_counter + 1) % 4;
-  }
-
-  SwerveComponent(robotics::component::Swerve::Config swerve_config,
-                  controller::swerve::SwerveController &b,
-                  controller::swerve::SwerveValueStore<float> &c)
-      : swerve_(swerve_config), ctrl_(b), values_(c) {
-    Link_();
   }
 
   void Reset() { swerve_.Reset(); }

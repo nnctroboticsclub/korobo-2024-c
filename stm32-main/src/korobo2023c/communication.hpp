@@ -22,9 +22,9 @@ class Communication {
       PinName rx, tx;
     } driving_can;
 
-    korobo::n2023c::Controller::Config controller_ids;
+    korobo2023c::Controller::Config controller_ids;
 
-    korobo::n2023c::ValueStoreMain<float>::Config value_store_ids;
+    korobo2023c::ValueStoreMain<float>::Config value_store_ids;
 
     struct {
       PinName sda;
@@ -42,8 +42,8 @@ class Communication {
   DistributedCAN can_;
   std::unique_ptr<DrivingCANBus> driving_;
 
-  korobo::n2023c::Controller controller_status_;
-  korobo::n2023c::ValueStoreMain<float> value_store_;
+  korobo2023c::Controller controller_status_;
+  korobo2023c::ValueStoreMain<float> value_store_;
 
   robotics::sensor::gyro::BNO055 gyro_;
   robotics::node::BLDC bldc[3];

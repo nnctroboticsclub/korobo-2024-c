@@ -96,7 +96,8 @@ class App {
         emc(PC_1),
         swerve_(std::make_unique<SwerveComponent>(
             config.swerve_config, com_->controller_status_.swerve,
-            com_->value_store_.swerve)) {
+            com_->value_store_.swerve)),
+        upper_(com_->controller_status_.upper) {
     prevent_swerve_update.store(false);
 
     com_->LinkToSwerve(*swerve_);
@@ -124,46 +125,14 @@ class App {
       upper_.load >> motor.GetMotor();
     }
 
-    com_->controller_status_.shot_l_factor.Link(
-        com_->driving_->GetShotL().GetMotor().factor);
-    com_->controller_status_.shot_r_factor.Link(
-        com_->driving_->GetShotR().GetMotor().factor);
+    upper_.shot_r = std::unique_ptr<robotics::node::Motor<float>>(
+        &com_->driving_->GetShotR().GetMotor());
+    upper_.shot_l = std::unique_ptr<robotics::node::Motor<float>>(
+        &com_->driving_->GetShotL().GetMotor());
 
-    upper_.shot.SetChangeCallback([this](float speed) {
-      com_->driving_->GetShotL().GetMotor().SetValue(speed);
-      com_->driving_->GetShotR().GetMotor().SetValue(-speed);
-    });
+    upper_.load.Link(com_->driving_->GetLoad().GetMotor());
 
-    com_->controller_status_.shot_speed.SetChangeCallback(
-        [this](float speed) { upper_.SetShotSpeed(speed); });
-    com_->controller_status_.max_elevation.SetChangeCallback(
-        [this](float angle) { upper_.SetMaxElevationAngle(angle); });
-    com_->controller_status_.shot.SetChangeCallback(
-        [this](robotics::JoyStick2D x) {
-          printf("U< %6.4f %6.4f\n", x[0], x[1]);
-          upper_.SetRotationAngle(x[0] * 60);
-          upper_.SetElevationAngle(x[1] * 60);
-        });
-
-    com_->controller_status_.elevation_pid.Link(
-        upper_.elevation_motor.pid.gains);
-    com_->controller_status_.rotation_pid.Link(upper_.rotation_motor.pid.gains);
-
-    com_->controller_status_.do_shot.SetChangeCallback([this](bool shot) {
-      if (shot) {
-        upper_.Shot();
-      } else {
-        upper_.ShotStop();
-      }
-    });
-    com_->controller_status_.do_load.SetChangeCallback([this](bool load) {
-      printf("[Ctrl::Upper] Set LoadState -> %d\n", load);
-      upper_.SetLoadState(load);
-    });
-    com_->controller_status_.load_speed.Link(upper_.load_speed);
-
-    com_->controller_status_.revolver_change.OnFire(
-        [this]() { upper_.RevolverChange(); });
+    upper_.LinkController();
 
     com_->controller_status_.steer_0_inverse.OnFire([this]() {
       com_->value_store_.swerve.motor_0_encoder.inv =
