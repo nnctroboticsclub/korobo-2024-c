@@ -207,6 +207,44 @@ us2: cs2 fs2
 a2r2:
 	addr2line -e /workspaces/korobo2023/stm32-enc/BUILD/NUCLEO_F446RE/GCC_ARM/stm32-enc.elf
 
+# NAS
+
+NAS := /mnt/RoboNAS
+NAS_FLASH := $(NAS)/flash
+NAS_FLASH_KOROBO2024C := $(NAS_FLASH)/korobo-2024-C
+NAS_FLASH_MDC := $(NAS_FLASH)/mdc
+
+$(NAS):
+	sudo mkdir $(NAS)
+
+$(NAS)/aquota.group: $(NAS)
+	@if mount | grep /mnt/RoboNAS 2>&1 1>/dev/null; then \
+		echo "Already Mounted"; \
+	else \
+		sudo mount //100.69.175.93/Public $(NAS) -t cifs \
+			-o username=robo,password=robo,iocharset=utf8,file_mode=0777,dir_mode=077; \
+		echo "Mounted"; \
+	fi
+
+$(NAS_FLASH): $(NAS)/aquota.group
+	[ -d $(NAS_FLASH) ] || sudo mkdir $(NAS_FLASH)
+
+$(NAS_FLASH_KOROBO2024C): $(NAS_FLASH)
+	[ -d $(NAS_FLASH_KOROBO2024C) ] || sudo mkdir $(NAS_FLASH_KOROBO2024C)
+
+$(NAS_FLASH_MDC): $(NAS_FLASH)
+	[ -d $(NAS_FLASH_MDC) ] || sudo mkdir $(NAS_FLASH_MDC)
+
+ns1: cs1 $(NAS_FLASH_KOROBO2024C)
+	cp $(S1_BIN) $(NAS_FLASH_KOROBO2024C)/stm32-main-$(shell date +%Y%m%d-%H%M%S).bin
+
+ns2: cs2 $(NAS_FLASH_KOROBO2024C)
+	cp /workspaces/korobo2023/stm32-enc/BUILD/*/GCC_ARM/stm32-enc.bin $(NAS_FLASH_KOROBO2024C)/stm32-enc-$(shell date +%Y%m%d-%H%M%S).bin
+
+nsn: $(NAS_FLASH_MDC)
+	cp /workspaces/nishiwakiMDC/BUILD/NUCLEO_F446RE/GCC_ARM/nishiwakiMDC.bin $(NAS_FLASH_MDC)/nishiwakiMDC-$(shell date +%Y%m%d-%H%M%S).bin
+
+
 # Some useful commands
 
 lu:
@@ -223,7 +261,6 @@ ws:
 
 lc:
 	wc -l \
-		$$(find ./stm32-main/src -type f) \
 		$$(find ./stm32-main/src -type f)
 
 
