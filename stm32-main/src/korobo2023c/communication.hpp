@@ -7,6 +7,7 @@
 #include "../robotics/node/BLDC.hpp"
 
 #include "components/swerve.hpp"
+#include "components/upper.hpp"
 
 class Communication {
  public:
@@ -170,6 +171,40 @@ class Communication {
     swerve.swerve_.motors[2]->drive_.Link(bldc[2]);
     swerve.swerve_.motors[2]->steer_.output.Link(
         driving_->GetSwerveRot2().GetMotor());
+  }
+
+  void LinkToUpper(korobo2023c::Upper &upper) {
+    {
+      auto &motor = driving_->GetElevation();
+      // upper.elevation_motor.Link(motor.GetMotor());
+      motor.GetEncoder() >> upper.elevation_motor.feedback;
+      upper.elevation_motor.output >> motor.GetMotor();
+      motor.GetMotor().factor.SetValue(1);
+    }
+    {
+      auto &motor = driving_->GetHorizontal();
+      // upper.elevation_motor.Link(motor.GetMotor());
+      motor.GetEncoder() >> upper.rotation_motor.feedback;
+      upper.rotation_motor.output >> motor.GetMotor();
+    }
+    {
+      auto &motor = driving_->GetRevolver();
+      motor.GetEncoder() >> upper.revolver.encoder;
+      upper.revolver.output >> motor.GetMotor();
+    }
+    {
+      auto &motor = driving_->GetLoad();
+      upper.load >> motor.GetMotor();
+    }
+
+    upper.shot_r = std::unique_ptr<robotics::node::Motor<float>>(
+        &driving_->GetShotR().GetMotor());
+    upper.shot_l = std::unique_ptr<robotics::node::Motor<float>>(
+        &driving_->GetShotL().GetMotor());
+
+    upper.load.Link(driving_->GetLoad().GetMotor());
+
+    upper.LinkController();
   }
 
   void Report() {

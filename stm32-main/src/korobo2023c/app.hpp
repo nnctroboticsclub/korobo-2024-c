@@ -102,37 +102,7 @@ class App {
 
     com_->LinkToSwerve(*swerve_);
 
-    {
-      auto &motor = com_->driving_->GetElevation();
-      // upper_.elevation_motor.Link(motor.GetMotor());
-      motor.GetEncoder() >> upper_.elevation_motor.feedback;
-      upper_.elevation_motor.output >> motor.GetMotor();
-      motor.GetMotor().factor.SetValue(1);
-    }
-    {
-      auto &motor = com_->driving_->GetHorizontal();
-      // upper_.elevation_motor.Link(motor.GetMotor());
-      motor.GetEncoder() >> upper_.rotation_motor.feedback;
-      upper_.rotation_motor.output >> motor.GetMotor();
-    }
-    {
-      auto &motor = com_->driving_->GetRevolver();
-      motor.GetEncoder() >> upper_.revolver.encoder;
-      upper_.revolver.output >> motor.GetMotor();
-    }
-    {
-      auto &motor = com_->driving_->GetLoad();
-      upper_.load >> motor.GetMotor();
-    }
-
-    upper_.shot_r = std::unique_ptr<robotics::node::Motor<float>>(
-        &com_->driving_->GetShotR().GetMotor());
-    upper_.shot_l = std::unique_ptr<robotics::node::Motor<float>>(
-        &com_->driving_->GetShotL().GetMotor());
-
-    upper_.load.Link(com_->driving_->GetLoad().GetMotor());
-
-    upper_.LinkController();
+    com_->LinkToUpper(upper_);
 
     com_->controller_status_.steer_0_inverse.OnFire([this]() {
       com_->value_store_.swerve.motor_0_encoder.inv =
