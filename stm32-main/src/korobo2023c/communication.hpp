@@ -207,6 +207,25 @@ class Communication {
     upper.LinkController();
   }
 
+  void AddCAN1Debug() {
+    can_.OnRx([](uint32_t id, std::vector<uint8_t> data) {
+      std::stringstream ss;
+      ss << "0x" << std::hex << std::setw(4) << id << ": ";
+      for (auto byte : data) {
+        ss << std::setw(2) << std::hex << (int)byte << " ";
+      }
+      printf("CAN1<-- %s\n", ss.str().c_str());
+    });
+    can_.OnTx([](uint32_t id, std::vector<uint8_t> data) {
+      std::stringstream ss;
+      ss << "0x" << std::hex << std::setw(4) << id << ": ";
+      for (auto byte : data) {
+        ss << std::setw(2) << std::hex << (int)byte << " ";
+      }
+      printf("CAN1--> %s\n", ss.str().c_str());
+    });
+  }
+
   void Report() {
     switch (report_counter) {
       case 0:
