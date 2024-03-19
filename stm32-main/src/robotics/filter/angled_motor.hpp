@@ -15,6 +15,8 @@ class AngledMotor {
   Node<float> goal;
   Node<float> output;
 
+  Node<float> offset;
+
  private:
   AngleNormalizer<float> feedback_normalizer;
   AngleNormalizer<float> goal_normalizer;
@@ -28,6 +30,8 @@ class AngledMotor {
     goal_normalizer.output.Link(pid.goal_);
 
     pid.output_.Link(output);
+
+    offset.Link(goal_normalizer.offset);
   }
 
   void Update(float dt) { pid.Update(dt); }
@@ -35,6 +39,18 @@ class AngledMotor {
   void Reset() {
     feedback_normalizer.Reset();
     goal_normalizer.Reset();
+  }
+
+  void AddOffset(float offset) {
+    float new_offset = this->offset.GetValue() + offset;
+
+    if (new_offset > 180) {
+      new_offset -= 360;
+    } else if (new_offset < -180) {
+      new_offset += 360;
+    }
+
+    this->offset.SetValue(new_offset);
   }
 };
 }  // namespace robotics::filter

@@ -12,8 +12,12 @@ class AngleNormalizer {
   Node<T> input;
   Node<T> output;
 
+  Node<T> offset;
+
   AngleNormalizer() {
-    input.SetChangeCallback([this](T input) {
+    input.SetChangeCallback([this](T _input) {
+      T input = _input + offset.GetValue();
+
       T delta_rot_y_deg = input - prev_input;
       prev_input = input;
 
@@ -30,6 +34,9 @@ class AngleNormalizer {
 
       output.SetValue(value);
     });
+
+    offset.SetChangeCallback(
+        [this](T _offset) { input.SetValue(input.GetValue()); });
   }
 
   void Reset() {

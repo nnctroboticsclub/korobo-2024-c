@@ -131,5 +131,7 @@ struct SwerveComponent {
     report_counter = (report_counter + 1) % 4;
   }
 
+  void InverseSteerMotor(int index) { this->swerve_.InverseSteerMotor(index); }
+
   void Reset() { swerve_.Reset(); }
 };

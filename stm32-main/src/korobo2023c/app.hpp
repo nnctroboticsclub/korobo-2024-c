@@ -147,41 +147,41 @@ class App {
                      0x000000, 0x000000, 0x000000, 0x000000, 0x000000,
                      0x000000, 0x000000, 0x000000, 0x000000, 0x00ff00};
 
+    led.Clear();
+
+    led.PutPixel((20 + i + 0) % 20, 0x00ff00);
+    led.PutPixel((20 + i + 1) % 20, 0x00ff00);
+    led.PutPixel((20 + i + 2) % 20, 0x00ff00);
+    led.PutPixel((20 + i + 3) % 20, 0x00ff00);
+    led.PutPixel((20 + i + 4) % 20, 0x00ff00);
+    led.PutPixel((20 + i + 5) % 20, 0x00ff00);
+    led.PutPixel((20 + i + 6) % 20, 0x00ff00);
+    led.PutPixel((20 + i + 7) % 20, 0x00ff00);
+    led.PutPixel((20 + i + 8) % 20, 0x00ff00);
+    led.PutPixel((20 + i + 9) % 20, 0x00ff00);
+    led.PutPixel((20 + i + 10) % 20, 0x00ff00);
+    led.PutPixel((20 + i + 11) % 20, 0x00ff00);
+    led.PutPixel((20 + i + 12) % 20, 0x00ff00);
+    led.PutPixel((20 + i + 13) % 20, 0x00ff00);
+    led.PutPixel((20 + i + 14) % 20, 0x00ff00);
+    led.PutPixel((20 + i + 15) % 20, 0x00ff00);
+    led.PutPixel((20 + i + 16) % 20, 0x00ff00);
+    led.PutPixel((20 + i + 17) % 20, 0x00ff00);
+    led.PutPixel((20 + i + 18) % 20, 0x00ff00);
+    led.PutPixel((20 + i + 19) % 20, 0x00ff00);
+
     while (1) {
-      led.Clear();
-
-      led.PutPixel((20 + i + 0) % 20, buf[0].ToRGB());
-      led.PutPixel((20 + i + 1) % 20, buf[1].ToRGB());
-      led.PutPixel((20 + i + 2) % 20, buf[2].ToRGB());
-      led.PutPixel((20 + i + 3) % 20, buf[3].ToRGB());
-      led.PutPixel((20 + i + 4) % 20, buf[4].ToRGB());
-      led.PutPixel((20 + i + 5) % 20, buf[5].ToRGB());
-      led.PutPixel((20 + i + 6) % 20, buf[6].ToRGB());
-      led.PutPixel((20 + i + 7) % 20, buf[7].ToRGB());
-      led.PutPixel((20 + i + 8) % 20, buf[8].ToRGB());
-      led.PutPixel((20 + i + 9) % 20, buf[9].ToRGB());
-      led.PutPixel((20 + i + 10) % 20, buf[10].ToRGB());
-      led.PutPixel((20 + i + 11) % 20, buf[11].ToRGB());
-      led.PutPixel((20 + i + 12) % 20, buf[12].ToRGB());
-      led.PutPixel((20 + i + 13) % 20, buf[13].ToRGB());
-      led.PutPixel((20 + i + 14) % 20, buf[14].ToRGB());
-      led.PutPixel((20 + i + 15) % 20, buf[15].ToRGB());
-      led.PutPixel((20 + i + 16) % 20, buf[16].ToRGB());
-      led.PutPixel((20 + i + 17) % 20, buf[17].ToRGB());
-      led.PutPixel((20 + i + 18) % 20, buf[18].ToRGB());
-      led.PutPixel((20 + i + 19) % 20, buf[19].ToRGB());
-
       led.Write();
 
-      auto tick = 20 - 1 * i / 40.0f;
-      int tick_int = tick < 0 ? 0 : (int)tick;
+      // auto tick = 20 - 1 * i / 40.0f;
+      // int tick_int = tick < 0 ? 0 : (int)tick;
 
-      ThisThread::sleep_for(tick_int * 1ms);
-      i++;
+      // ThisThread::sleep_for(tick_int * 1ms);
+      // i++;
 
-      for (int k = 0; k < 19; k++) {
-        buf[k] = (buf[k] * 39 + buf[k + 1]) / 40;
-      }
+      // for (int k = 0; k < 19; k++) {
+      //   buf[k] = (buf[k] * 39 + buf[k + 1]) / 40;
+      // }
     }
   }
 
@@ -200,20 +200,14 @@ class App {
 
     com_->LinkToUpper(upper_);
 
-    com_->controller_status_.steer_0_inverse.OnFire([this]() {
-      com_->value_store_.swerve.motor_0_encoder.ToggleInv(
-          !com_->value_store_.swerve.motor_2_encoder.inv);
-    });
+    com_->controller_status_.steer_0_inverse.OnFire(
+        [this]() { swerve_->InverseSteerMotor(0); });
 
-    com_->controller_status_.steer_1_inverse.OnFire([this]() {
-      com_->value_store_.swerve.motor_1_encoder.ToggleInv(
-          !com_->value_store_.swerve.motor_2_encoder.inv);
-    });
+    com_->controller_status_.steer_1_inverse.OnFire(
+        [this]() { swerve_->InverseSteerMotor(1); });
 
-    com_->controller_status_.steer_2_inverse.OnFire([this]() {
-      com_->value_store_.swerve.motor_2_encoder.ToggleInv(
-          !com_->value_store_.swerve.motor_2_encoder.inv);
-    });
+    com_->controller_status_.steer_2_inverse.OnFire(
+        [this]() { swerve_->InverseSteerMotor(2); });
 
     com_->controller_status_.soft_emc.SetChangeCallback([this](bool emc) {
       printf("EMC setted to %d\n", emc);

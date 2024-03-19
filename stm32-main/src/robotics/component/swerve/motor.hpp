@@ -66,6 +66,8 @@ class Motor {
   void Update(float dt) { this->steer_.Update(dt); }
 
   void Reset() { this->steer_.Reset(); }
+
+  void InverseSteerMotor() { steer_.AddOffset(180); }
 };
 
 }  // namespace robotics::component::swerve
