@@ -1,5 +1,9 @@
 #pragma once
 
+#include <chrono>
+
+#include <mbed.h>
+
 #include "robotics/filter/pid.hpp"
 #include "robotics/filter/angled_motor.hpp"
 #include "robotics/filter/inc_angled_motor.hpp"
@@ -92,12 +96,24 @@ class Upper {
   Controller& controller;
 
   Node<float> zero;
+  Node<float> neg_half;
 
   Node<float> load_speed;
   Node<float> shot_speed;
 
   Muxer load_mux;
   Muxer shot_mux;
+
+  mbed::Timer timer;
+
+  enum class LoadState {
+    kIdle,
+    kInRotation,
+    kInReversing,
+  };
+  LoadState load_state = LoadState::kIdle;
+
+  const std::chrono::duration<float> revolver_reversing_time = 30ms;
 
  private:
   float max_elevation_angle = 60.0;
@@ -106,12 +122,14 @@ class Upper {
   Upper(Controller& ctrl) : controller(ctrl) {
     printf("[Upper] Init\n");
     zero.SetValue(0);
+    neg_half.SetValue(0.5);
 
     load_speed.SetValue(-0.18);
     shot_speed.SetValue(0.25);
 
     load_mux.AddInput(zero);
     load_mux.AddInput(load_speed);
+    load_mux.AddInput(neg_half);
     load_mux.output_.Link(load);
 
     shot_mux.AddInput(zero);
@@ -136,7 +154,8 @@ class Upper {
 
     controller.do_load.SetChangeCallback([this](bool load) {
       printf("[Ctrl::Upper] Set LoadState -> %d\n", load);
-      SetLoadState(load);
+      SetLoadState(load ? LoadAction::kStartRotation
+                        : LoadAction::kStopRotation);
     });
 
     controller.shot_speed.SetChangeCallback(
@@ -145,8 +164,13 @@ class Upper {
 
     controller.max_elevation.SetChangeCallback(
         [this](float angle) { SetMaxElevationAngle(angle); });
-    controller.revolver_change.SetChangeCallback(
-        [this](bool revolver) { RevolverChange(revolver); });
+    controller.revolver_change.SetChangeCallback([this](bool revolver) {
+      if (revolver) {
+        RevolverChange(RevolverAction::kStartRotation);
+      } else {
+        RevolverChange(RevolverAction::kStopRotation);
+      }
+    });
 
     controller.elevation_pid.Link(elevation_motor.pid.gains);
     controller.rotation_pid.Link(rotation_motor.pid.gains);
@@ -161,6 +185,20 @@ class Upper {
     elevation_motor.Update(dt);
     rotation_motor.Update(dt);
     //     revolver.Update(dt);
+
+    switch (load_state) {
+      case LoadState::kInRotation:
+        break;
+
+      case LoadState::kInReversing:
+        if (timer.elapsed_time() > revolver_reversing_time) {
+          SetLoadState(LoadAction::kStopCounterRotation);
+        }
+        break;
+
+      case LoadState::kIdle:
+        break;
+    }
   }
 
   // 仰角
@@ -188,9 +226,53 @@ class Upper {
   /**
    * @param load do load motor rolling
    */
-  void SetLoadState(bool load) { load_mux.Select(load ? 1 : 0); }
+  enum class LoadAction {
+    kStartRotation,
+    kStopRotation,
+    kStartCounterRotation,
+    kStopCounterRotation,
+  };
+  void SetLoadState(LoadAction state) {
+    switch (state) {
+      case LoadAction::kStartRotation:
+        load_state = LoadState::kInRotation;
+        load_mux.Select(1);
+        break;
+
+      case LoadAction::kStopRotation:
+        SetLoadState(LoadAction::kStartCounterRotation);
+        break;
+
+      case LoadAction::kStartCounterRotation:
+        load_state = LoadState::kInReversing;
+        load_mux.Select(2);
+
+        timer.reset();
+        timer.start();
+        break;
+
+      case LoadAction::kStopCounterRotation:
+        load_state = LoadState::kIdle;
+        load_mux.Select(0);
+        break;
+    }
+  }
 
   // リロード
-  void RevolverChange(bool flag) { revolver->SetValue(flag ? 0.5 : 0.0); }
+  enum class RevolverAction {
+    kStartRotation,
+    kStopRotation,
+  };
+  void RevolverChange(RevolverAction state) {
+    switch (state) {
+      case RevolverAction::kStartRotation:
+        revolver->SetValue(0.5);
+        break;
+
+      case RevolverAction::kStopRotation:
+        revolver->SetValue(0);
+        break;
+    }
+  }
 };
 }  // namespace korobo2023c
