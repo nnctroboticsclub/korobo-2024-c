@@ -18,25 +18,171 @@ int main_mi() {
 }
 
 int main_2() {
-  NeoPixel led(PB_2, 7);
+  NeoPixel led(PB_2, 20);
 
   int i = 0;
 
   while (1) {
     led.Clear();
 
-    led.PutPixel((7 + i + 0) % 7, 0x0C0000);
-    led.PutPixel((7 + i + 1) % 7, 0x0A0000);
-    led.PutPixel((7 + i + 2) % 7, 0x080000);
-    led.PutPixel((7 + i + 3) % 7, 0x060000);
-    led.PutPixel((7 + i + 4) % 7, 0x040000);
-    led.PutPixel((7 + i + 5) % 7, 0x020000);
-    led.PutPixel((7 + i + 6) % 7, 0x000000);
+    /* led.PutPixel((20 + i + 0) % 20, 0x320064);
+    led.PutPixel((20 + i + 1) % 20, 0x960032);
+    led.PutPixel((20 + i + 2) % 20, 0xFF0000);
+    led.PutPixel((20 + i + 3) % 20, 0xff0000);
+    led.PutPixel((20 + i + 4) % 20, 0x960032);
+    led.PutPixel((20 + i + 5) % 20, 0x320064);
+    led.PutPixel((20 + i + 6) % 20, 0x0000FF);
+    led.PutPixel((20 + i + 7) % 20, 0x0000FF);
+    led.PutPixel((20 + i + 8) % 20, 0x0000FF);
+    led.PutPixel((20 + i + 9) % 20, 0x0000FF);
+    led.PutPixel((20 + i + 10) % 20, 0x0000FF);
+    led.PutPixel((20 + i + 11) % 20, 0x0000FF);
+    led.PutPixel((20 + i + 12) % 20, 0x0000FF);
+    led.PutPixel((20 + i + 13) % 20, 0x0000FF);
+    led.PutPixel((20 + i + 14) % 20, 0x0000FF);
+    led.PutPixel((20 + i + 15) % 20, 0x0000FF);
+    led.PutPixel((20 + i + 16) % 20, 0x0000FF);
+    led.PutPixel((20 + i + 17) % 20, 0x0000FF);
+    led.PutPixel((20 + i + 18) % 20, 0x0000FF);
+    led.PutPixel((20 + i + 19) % 20, 0x0000FF); */
+
+    /* led.PutPixel((20 + i + 0) % 20, 0x00ff00);
+    led.PutPixel((20 + i + 1) % 20, 0x00ff00);
+    led.PutPixel((20 + i + 2) % 20, 0x00ff00);
+    led.PutPixel((20 + i + 3) % 20, 0x00ff00);
+    led.PutPixel((20 + i + 4) % 20, 0x00ff00);
+    led.PutPixel((20 + i + 5) % 20, 0x000000);
+    led.PutPixel((20 + i + 6) % 20, 0x000000);
+    led.PutPixel((20 + i + 7) % 20, 0x000000);
+    led.PutPixel((20 + i + 8) % 20, 0x000000);
+    led.PutPixel((20 + i + 9) % 20, 0x000000);
+    led.PutPixel((20 + i + 10) % 20, 0x000000);
+    led.PutPixel((20 + i + 11) % 20, 0x000000);
+    led.PutPixel((20 + i + 12) % 20, 0x000000);
+    led.PutPixel((20 + i + 13) % 20, 0x000000);
+    led.PutPixel((20 + i + 14) % 20, 0x000000);
+    led.PutPixel((20 + i + 15) % 20, 0x000000);
+    led.PutPixel((20 + i + 16) % 20, 0x000000);
+    led.PutPixel((20 + i + 17) % 20, 0x000000);
+    led.PutPixel((20 + i + 18) % 20, 0x000000); // 65ms
+    led.PutPixel((20 + i + 19) % 20, 0x000000); */
+
+    /* led.PutPixel((20 + i + 0) % 20, 0x003208);
+    led.PutPixel((20 + i + 1) % 20, 0x006416);
+    led.PutPixel((20 + i + 2) % 20, 0x00ff32);
+    led.PutPixel((20 + i + 3) % 20, 0x006416);
+    led.PutPixel((20 + i + 4) % 20, 0x003208);
+    led.PutPixel((20 + i + 5) % 20, 0x000000);
+    led.PutPixel((20 + i + 6) % 20, 0x000000);
+    led.PutPixel((20 + i + 7) % 20, 0x000000);
+    led.PutPixel((20 + i + 8) % 20, 0x000000);
+    led.PutPixel((20 + i + 9) % 20, 0x000000);
+    led.PutPixel((20 + i + 10) % 20, 0x003208);
+    led.PutPixel((20 + i + 11) % 20, 0x006416);
+    led.PutPixel((20 + i + 12) % 20, 0x00ff32);
+    led.PutPixel((20 + i + 13) % 20, 0x006416);
+    led.PutPixel((20 + i + 14) % 20, 0x003208);
+    led.PutPixel((20 + i + 15) % 20, 0x000000);
+    led.PutPixel((20 + i + 16) % 20, 0x000000);
+    led.PutPixel((20 + i + 17) % 20, 0x000000);
+    led.PutPixel((20 + i + 18) % 20, 0x000000); // 40ms
+    led.PutPixel((20 + i + 19) % 20, 0x000000); */
 
     led.Write();
 
-    ThisThread::sleep_for(50ms);
+    ThisThread::sleep_for(40ms);
     i++;
+  }
+
+  return 0;
+}
+
+/* class Color {
+ public:
+  uint32_t r;
+  uint32_t g;
+  uint32_t b;
+
+  Color(uint8_t r, uint8_t g, uint8_t b) : r(r), g(g), b(b) {}
+
+  Color(uint32_t rgb)
+      : r((rgb >> 16) & 0xFF), g((rgb >> 8) & 0xFF), b(rgb & 0xFF) {}
+
+  Color operator+(Color const &other) {
+    return Color(r + other.r, g + other.g, b + other.b);
+  }
+
+  Color operator-(Color const &other) {
+    return Color(r - other.r, g - other.g, b - other.b);
+  }
+
+  Color operator*(float const &other) {
+    return Color(r * other, g * other, b * other);
+  }
+
+  Color operator*(int const &other) {
+    return Color(r * other, g * other, b * other);
+  }
+
+  Color operator/(int const &other) {
+    return Color(r / other, g / other, b / other);
+  }
+
+  uint32_t ToRGB() {
+    uint8_t r = this->r > 255 ? 255 : this->r;
+    uint8_t g = this->g > 255 ? 255 : this->g;
+    uint8_t b = this->b > 255 ? 255 : this->b;
+
+    return (r << 16) | (g << 8) | b;
+  }
+}; */
+
+int main_3() {
+  NeoPixel led(PB_2, 20);
+
+  int i = 0;
+  int j = 0;
+
+  Color buf[20] = {0x000000, 0x000000, 0x000000, 0x000000, 0x000000,
+                   0x000000, 0x000000, 0x000000, 0x000000, 0x000000,
+                   0x000000, 0x000000, 0x000000, 0x000000, 0x000000,
+                   0x000000, 0x000000, 0x000000, 0x000000, 0x00ff00};
+
+  while (1) {
+    led.Clear();
+
+    led.PutPixel((20 + i + 0) % 20, buf[0].ToRGB());
+    led.PutPixel((20 + i + 1) % 20, buf[1].ToRGB());
+    led.PutPixel((20 + i + 2) % 20, buf[2].ToRGB());
+    led.PutPixel((20 + i + 3) % 20, buf[3].ToRGB());
+    led.PutPixel((20 + i + 4) % 20, buf[4].ToRGB());
+    led.PutPixel((20 + i + 5) % 20, buf[5].ToRGB());
+    led.PutPixel((20 + i + 6) % 20, buf[6].ToRGB());
+    led.PutPixel((20 + i + 7) % 20, buf[7].ToRGB());
+    led.PutPixel((20 + i + 8) % 20, buf[8].ToRGB());
+    led.PutPixel((20 + i + 9) % 20, buf[9].ToRGB());
+    led.PutPixel((20 + i + 10) % 20, buf[10].ToRGB());
+    led.PutPixel((20 + i + 11) % 20, buf[11].ToRGB());
+    led.PutPixel((20 + i + 12) % 20, buf[12].ToRGB());
+    led.PutPixel((20 + i + 13) % 20, buf[13].ToRGB());
+    led.PutPixel((20 + i + 14) % 20, buf[14].ToRGB());
+    led.PutPixel((20 + i + 15) % 20, buf[15].ToRGB());
+    led.PutPixel((20 + i + 16) % 20, buf[16].ToRGB());
+    led.PutPixel((20 + i + 17) % 20, buf[17].ToRGB());
+    led.PutPixel((20 + i + 18) % 20, buf[18].ToRGB());
+    led.PutPixel((20 + i + 19) % 20, buf[19].ToRGB());
+
+    led.Write();
+
+    auto tick = 20 - 1 * i / 40.0f;
+    int tick_int = tick < 0 ? 0 : (int)tick;
+
+    ThisThread::sleep_for(tick_int * 1ms);
+    i++;
+
+    for (int k = 0; k < 19; k++) {
+      buf[k] = (buf[k] * 39 + buf[k + 1]) / 40;
+    }
   }
 
   return 0;
@@ -123,6 +269,7 @@ int main_pro() {
                               .rotation_pid_id = 5,
                               .shot_l_factor_id = 6,
                               .shot_r_factor_id = 7,
+                              .revolver_pid_id = 6,
                           },
                       .soft_emc_id = 3,
                       .esc_factor_0_id = 2,
@@ -183,7 +330,7 @@ int main_switch() {
   printf("    - sizeof(App): %d\n", sizeof(App));
 
   // main_mi();
-  // main_2();
+  // main_3();
   // main_can();
   main_pro();
   return 0;

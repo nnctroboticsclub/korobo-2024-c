@@ -178,14 +178,14 @@ class Communication {
       auto &motor = driving_->GetElevation();
       // upper.elevation_motor.Link(motor.GetMotor());
       motor.GetEncoder() >> upper.elevation_motor.feedback;
-      upper.elevation_motor.output >> motor.GetMotor();
+      upper.elevation_motor.goal >> motor.GetMotor();
       motor.GetMotor().factor.SetValue(1);
     }
     {
       auto &motor = driving_->GetHorizontal();
       // upper.elevation_motor.Link(motor.GetMotor());
       motor.GetEncoder() >> upper.rotation_motor.feedback;
-      upper.rotation_motor.output >> motor.GetMotor();
+      upper.rotation_motor.goal >> motor.GetMotor();
     }
     {
       auto &motor = driving_->GetRevolver();

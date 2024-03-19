@@ -33,6 +33,8 @@ class Upper {
       uint8_t rotation_pid_id;
       uint8_t shot_l_factor_id;
       uint8_t shot_r_factor_id;
+
+      uint8_t revolver_pid_id;
     };
 
     controller::JoyStick shot;           // upper
@@ -48,6 +50,8 @@ class Upper {
     controller::Float shot_l_factor;  // upper
     controller::Float shot_r_factor;  // upper
 
+    controller::PID revolver_pid;  // uppe
+
     Controller(Config const& config = {})
         : shot(config.shot_joystick_id),
           do_shot(config.do_shot_id),
@@ -59,7 +63,8 @@ class Upper {
           elevation_pid(config.elevation_pid_id),
           rotation_pid(config.rotation_pid_id),
           shot_l_factor(config.shot_l_factor_id),
-          shot_r_factor(config.shot_r_factor_id)
+          shot_r_factor(config.shot_r_factor_id),
+          revolver_pid(config.revolver_pid_id)
 
     {}
 
@@ -69,7 +74,7 @@ class Upper {
              load_speed.Pass(packet) || max_elevation.Pass(packet) ||
              revolver_change.Pass(packet) || elevation_pid.Pass(packet) ||
              rotation_pid.Pass(packet) || shot_l_factor.Pass(packet) ||
-             shot_r_factor.Pass(packet);
+             shot_r_factor.Pass(packet) || revolver_pid.Pass(packet);
     }
   };
 
@@ -101,8 +106,8 @@ class Upper {
     printf("[Upper] Init\n");
     zero.SetValue(0);
 
-    load_speed.SetValue(0.25);
-    shot_speed.SetValue(0.45);
+    load_speed.SetValue(-0.25);
+    shot_speed.SetValue(0.25);
 
     load_mux.AddInput(zero);
     load_mux.AddInput(load_speed);
@@ -119,8 +124,8 @@ class Upper {
   void LinkController() {
     controller.shot.SetChangeCallback([this](robotics::JoyStick2D x) {
       printf("S< %6.4f %6.4f\n", x[0], x[1]);
-      SetRotationAngle(x[0] * 60);
-      SetElevationAngle(x[1] * 60);
+      SetRotationAngle(x[0]);
+      SetElevationAngle(x[1]);
     });
 
     controller.do_shot.SetChangeCallback([this](bool shot) {
@@ -146,6 +151,8 @@ class Upper {
 
     controller.shot_l_factor.Link(shot_l->factor);
     controller.shot_r_factor.Link(shot_r->factor);
+
+    controller.revolver_pid.Link(revolver.pid.gains);
   }
 
   void Update(float dt) {

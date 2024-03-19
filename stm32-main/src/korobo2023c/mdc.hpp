@@ -52,18 +52,18 @@ class MDC {
     std::vector<uint8_t> report(5);
     report.reserve(5);
 
-    report[0] = 0x40 | id;
+    report[0] = 0x50 | id;
     report[1] = std::max(
-        std::min(motor_nodes_[0].GetEncoder().GetValue() + 128.0f, 255.0f),
+        std::min(motor_nodes_[0].GetEncoder().GetValue() / 360.0f, 255.0f),
         0.0f);
     report[2] = std::max(
-        std::min(motor_nodes_[1].GetEncoder().GetValue() + 128.0f, 255.0f),
+        std::min(motor_nodes_[1].GetEncoder().GetValue() / 360.0f, 255.0f),
         0.0f);
     report[3] = std::max(
-        std::min(motor_nodes_[2].GetEncoder().GetValue() + 128.0f, 255.0f),
+        std::min(motor_nodes_[2].GetEncoder().GetValue() / 360.0f, 255.0f),
         0.0f);
     report[4] = std::max(
-        std::min(motor_nodes_[3].GetEncoder().GetValue() + 128.0f, 255.0f),
+        std::min(motor_nodes_[3].GetEncoder().GetValue() / 360.0f, 255.0f),
         0.0f);
 
     auto ret = can.Send(0xa0, report);

@@ -413,6 +413,12 @@ CONFIG_EXAMPLE_CONNECT_IPV6_PREF_LOCAL_LINK=y
 # end of Example Connection Configuration
 
 #
+# main
+#
+CONFIG_STM32_PROGRAM_START=0x08000000
+# end of main
+
+#
 # Logic Analyzer Configuration
 #
 CONFIG_ANALYZER_USE_I2S_CHANNEL_0=y
@@ -427,12 +433,6 @@ CONFIG_ANALYZER_WIFI_PASS="mypass"
 # CONFIG_ANALYZER_USE_SUMP is not set
 # CONFIG_ANALYZER_USE_PORT_ASSIGN is not set
 # end of Logic Analyzer Configuration
-
-#
-# main
-#
-CONFIG_STM32_PROGRAM_START=0x08000000
-# end of main
 
 #
 # Compiler options

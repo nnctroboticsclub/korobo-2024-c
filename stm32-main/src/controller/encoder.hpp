@@ -28,7 +28,7 @@ struct Encoder : public ControllerBase<T> {
     if (this->assigned_id_ == 2) value += -227.0284 + 180 + 10 + 180 + 180;
 
     if (inv) {
-      value = value + 180;
+      value = value + 179;
     }
 
     if (value < 0) {
@@ -46,7 +46,7 @@ struct Encoder : public ControllerBase<T> {
   void ToggleInv(bool inv) {
     this->inv = inv;
 
-    auto angle = this->GetValue() + 180;
+    auto angle = this->GetValue() + 179;
     if (angle < 0) {
       angle += 360;
     }

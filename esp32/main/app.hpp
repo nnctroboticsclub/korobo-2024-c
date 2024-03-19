@@ -78,7 +78,7 @@ class App {
                  .subnet = 0,
                  .gateway = 0,
              }},
-        .active_network_profile_id = 3,
+        .active_network_profile_id = 4,
         .primary_stm32_id = 2};
 
     return init_config;

@@ -33,7 +33,7 @@ class BLDC : public Motor<float> {
     pwmout_.pulsewidth_us(0);
 
     SetValue(0);
-    factor.SetValue(0.25);
+    factor.SetValue(0.45);
   }
 
   void Init0() {

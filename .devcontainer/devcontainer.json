@@ -24,6 +24,11 @@
 				"ms-vscode.cpptools-extension-pack"
 			]
 		}
+	},
+	"portsAttributes": {
+		"8012": {
+			"label": "8012 ie-i"
+		}
 	}
 	// Configure tool-specific properties.
 	// "customizations": {},

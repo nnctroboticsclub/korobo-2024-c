@@ -13,20 +13,15 @@ class NeoPixel {
 
   void WriteByte(size_t index, uint8_t byte) {
     int byte_index = kResetSize + 4 * index;
-    for (size_t bit_index = 0; bit_index < 4; bit_index += 1) {
-      char pattern;
 
-      pattern = (byte & 1) ? 0xE : 0x8;
-      pattern <<= 4;
-      byte >>= 1;
-
-      pattern |= (byte & 1) ? 0xE : 0x8;
-      byte >>= 1;
-
-      data[byte_index] = pattern;
-
-      byte_index++;
-    }
+    data[byte_index + 0] =
+        ((byte >> 7) & 1 ? 0xE : 0x8) << 4 | ((byte >> 6) & 1 ? 0xE : 0x8);
+    data[byte_index + 1] =
+        ((byte >> 5) & 1 ? 0xE : 0x8) << 4 | ((byte >> 4) & 1 ? 0xE : 0x8);
+    data[byte_index + 2] =
+        ((byte >> 3) & 1 ? 0xE : 0x8) << 4 | ((byte >> 2) & 1 ? 0xE : 0x8);
+    data[byte_index + 3] =
+        ((byte >> 1) & 1 ? 0xE : 0x8) << 4 | ((byte >> 0) & 1 ? 0xE : 0x8);
   }
 
  public:

@@ -9,7 +9,7 @@ namespace robotics::filter {
 template <typename T>
 class AngledMotor {
  public:
-  filter::PID<float> pid{1.0f / 360, 3.3f, 0.0f, 0.0f};
+  filter::PID<float> pid{1.0f / 360, 2.0f, 0.52f, 0.13f};
 
   Node<float> feedback;
   Node<float> goal;
