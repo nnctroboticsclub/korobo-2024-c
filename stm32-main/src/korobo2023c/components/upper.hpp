@@ -37,13 +37,13 @@ class Upper {
       uint8_t revolver_pid_id;
     };
 
-    controller::JoyStick shot;           // upper
-    controller::Boolean do_shot;         // upper
-    controller::Boolean do_load;         // upper
-    controller::Float shot_speed;        // upper
-    controller::Float load_speed;        // upper
-    controller::Float max_elevation;     // upper
-    controller::Action revolver_change;  // upper
+    controller::JoyStick shot;            // upper
+    controller::Boolean do_shot;          // upper
+    controller::Boolean do_load;          // upper
+    controller::Float shot_speed;         // upper
+    controller::Float load_speed;         // upper
+    controller::Float max_elevation;      // upper
+    controller::Boolean revolver_change;  // upper
 
     controller::PID elevation_pid;    // upper
     controller::PID rotation_pid;     // upper
@@ -80,7 +80,8 @@ class Upper {
 
   AngledMotor elevation_motor;
   AngledMotor rotation_motor;
-  IncAngledMotor revolver;
+  // IncAngledMotor revolver;
+  std::unique_ptr<Motor> revolver;
 
   std::unique_ptr<Motor> shot_r;
   std::unique_ptr<Motor> shot_l;
@@ -106,7 +107,7 @@ class Upper {
     printf("[Upper] Init\n");
     zero.SetValue(0);
 
-    load_speed.SetValue(-0.25);
+    load_speed.SetValue(-0.18);
     shot_speed.SetValue(0.25);
 
     load_mux.AddInput(zero);
@@ -144,7 +145,8 @@ class Upper {
 
     controller.max_elevation.SetChangeCallback(
         [this](float angle) { SetMaxElevationAngle(angle); });
-    controller.revolver_change.OnFire([this]() { RevolverChange(); });
+    controller.revolver_change.SetChangeCallback(
+        [this](bool revolver) { RevolverChange(revolver); });
 
     controller.elevation_pid.Link(elevation_motor.pid.gains);
     controller.rotation_pid.Link(rotation_motor.pid.gains);
@@ -152,13 +154,13 @@ class Upper {
     controller.shot_l_factor.Link(shot_l->factor);
     controller.shot_r_factor.Link(shot_r->factor);
 
-    controller.revolver_pid.Link(revolver.pid.gains);
+    // controller.revolver_pid.Link(revolver.pid.gains);
   }
 
   void Update(float dt) {
     elevation_motor.Update(dt);
     rotation_motor.Update(dt);
-    revolver.Update(dt);
+    //     revolver.Update(dt);
   }
 
   // 仰角
@@ -189,6 +191,6 @@ class Upper {
   void SetLoadState(bool load) { load_mux.Select(load ? 1 : 0); }
 
   // リロード
-  void RevolverChange() { revolver.AddAngle(360); }
+  void RevolverChange(bool flag) { revolver->SetValue(flag ? 0.5 : 0.0); }
 };
 }  // namespace korobo2023c
