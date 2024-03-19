@@ -101,8 +101,8 @@ class Upper {
     printf("[Upper] Init\n");
     zero.SetValue(0);
 
-    load_speed.SetValue(0.5);
-    shot_speed.SetValue(0.5);
+    load_speed.SetValue(0.25);
+    shot_speed.SetValue(0.45);
 
     load_mux.AddInput(zero);
     load_mux.AddInput(load_speed);
