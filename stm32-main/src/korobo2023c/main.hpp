@@ -264,7 +264,7 @@ int main_pro() {
                               .shot_speed_id = 0,
                               .load_speed_id = 5,
                               .max_elevation_id = 1,
-                              .revolver_change_id = 2,
+                              .revolver_change_id = 5,
                               .elevation_pid_id = 4,
                               .rotation_pid_id = 5,
                               .shot_l_factor_id = 6,

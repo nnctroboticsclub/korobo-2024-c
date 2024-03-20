@@ -188,11 +188,6 @@ class Communication {
       upper.rotation_motor.goal >> motor.GetMotor();
     }
     {
-      auto &motor = driving_->GetRevolver();
-      motor.GetEncoder() >> upper.revolver.encoder;
-      upper.revolver.output >> motor.GetMotor();
-    }
-    {
       auto &motor = driving_->GetLoad();
       upper.load >> motor.GetMotor();
     }
@@ -201,6 +196,9 @@ class Communication {
         &driving_->GetShotR().GetMotor());
     upper.shot_l = std::unique_ptr<robotics::node::Motor<float>>(
         &driving_->GetShotL().GetMotor());
+
+    upper.revolver = std::unique_ptr<robotics::node::Motor<float>>(
+        &driving_->GetRevolver().GetMotor());
 
     upper.load.Link(driving_->GetLoad().GetMotor());
 
