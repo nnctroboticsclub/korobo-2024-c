@@ -10,6 +10,11 @@
 #include "robotics/filter/muxer.hpp"
 #include "robotics/node/motor.hpp"
 
+#include "../../controller/joystick.hpp"
+#include "../../controller/boolean.hpp"
+#include "../../controller/float.hpp"
+#include "../../controller/pid.hpp"
+
 namespace korobo2023c {
 using PID = robotics::filter::PID<float>;
 using AngledMotor = robotics::filter::AngledMotor<float>;
@@ -49,8 +54,6 @@ class Upper {
     controller::Float max_elevation;      // upper
     controller::Boolean revolver_change;  // upper
 
-    controller::PID elevation_pid;    // upper
-    controller::PID rotation_pid;     // upper
     controller::Float shot_l_factor;  // upper
     controller::Float shot_r_factor;  // upper
 
@@ -64,8 +67,6 @@ class Upper {
           load_speed(config.load_speed_id),
           max_elevation(config.max_elevation_id),
           revolver_change(config.revolver_change_id),
-          elevation_pid(config.elevation_pid_id),
-          rotation_pid(config.rotation_pid_id),
           shot_l_factor(config.shot_l_factor_id),
           shot_r_factor(config.shot_r_factor_id),
           revolver_pid(config.revolver_pid_id)
@@ -76,8 +77,7 @@ class Upper {
       return shot.Pass(packet) || do_shot.Pass(packet) ||
              do_load.Pass(packet) || shot_speed.Pass(packet) ||
              load_speed.Pass(packet) || max_elevation.Pass(packet) ||
-             revolver_change.Pass(packet) || elevation_pid.Pass(packet) ||
-             rotation_pid.Pass(packet) || shot_l_factor.Pass(packet) ||
+             revolver_change.Pass(packet) || shot_l_factor.Pass(packet) ||
              shot_r_factor.Pass(packet) || revolver_pid.Pass(packet);
     }
   };
@@ -93,7 +93,7 @@ class Upper {
   Node<float> load;
 
  private:
-  Controller& controller;
+  Controller& ctrl;
 
   Node<float> zero;
   Node<float> neg_half;
@@ -119,7 +119,7 @@ class Upper {
   float max_elevation_angle = 60.0;
 
  public:
-  Upper(Controller& ctrl) : controller(ctrl) {
+  Upper(Controller& ctrl) : ctrl(ctrl) {
     printf("[Upper] Init\n");
     zero.SetValue(0);
     neg_half.SetValue(0.5);
@@ -141,30 +141,30 @@ class Upper {
   }
 
   void LinkController() {
-    controller.shot.SetChangeCallback([this](robotics::JoyStick2D x) {
+    ctrl.shot.SetChangeCallback([this](robotics::JoyStick2D x) {
       printf("S< %6.4f %6.4f\n", x[0], x[1]);
       SetRotationAngle(x[0]);
       SetElevationAngle(x[1]);
     });
 
-    controller.do_shot.SetChangeCallback([this](bool shot) {
+    ctrl.do_shot.SetChangeCallback([this](bool shot) {
       printf("[Ctrl::Upper] Set ShotState -> %d\n", shot);
       SetShotState(shot);
     });
 
-    controller.do_load.SetChangeCallback([this](bool load) {
+    ctrl.do_load.SetChangeCallback([this](bool load) {
       printf("[Ctrl::Upper] Set LoadState -> %d\n", load);
       SetLoadState(load ? LoadAction::kStartRotation
                         : LoadAction::kStopRotation);
     });
 
-    controller.shot_speed.SetChangeCallback(
+    ctrl.shot_speed.SetChangeCallback(
         [this](float speed) { SetShotSpeed(speed); });
-    controller.load_speed.Link(load_speed);
+    ctrl.load_speed.Link(load_speed);
 
-    controller.max_elevation.SetChangeCallback(
+    ctrl.max_elevation.SetChangeCallback(
         [this](float angle) { SetMaxElevationAngle(angle); });
-    controller.revolver_change.SetChangeCallback([this](bool revolver) {
+    ctrl.revolver_change.SetChangeCallback([this](bool revolver) {
       if (revolver) {
         RevolverChange(RevolverAction::kStartRotation);
       } else {
@@ -172,11 +172,8 @@ class Upper {
       }
     });
 
-    controller.elevation_pid.Link(elevation_motor.pid.gains);
-    controller.rotation_pid.Link(rotation_motor.pid.gains);
-
-    controller.shot_l_factor.Link(shot_l->factor);
-    controller.shot_r_factor.Link(shot_r->factor);
+    ctrl.shot_l_factor.Link(shot_l->factor);
+    ctrl.shot_r_factor.Link(shot_r->factor);
 
     // controller.revolver_pid.Link(revolver.pid.gains);
   }
