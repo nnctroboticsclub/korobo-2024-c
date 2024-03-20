@@ -30,7 +30,7 @@ class Swerve {
 
   std::array<Motor*, 3> motors;  // for injection
 
-  filter::PID<float> angle{1.0f, 1.0f, 0.0f, 0.0f};  // robot angle pid
+  filter::PID<float> angle{1.0f, 0.0f, 0.0f, 0.0f};  // robot angle pid
  private:
   filter::AngleNormalizer<float> rot_in_normalizer;  // ctrl angle normalizer
   filter::AngleNormalizer<float>
@@ -89,6 +89,8 @@ class Swerve {
     rot_in_normalizer.Reset();
     self_rot_y_normalizer.Reset();
   }
+
+  void InverseSteerMotor(int index) { motors[index]->InverseSteerMotor(); }
 };
 }  // namespace swerve
 
