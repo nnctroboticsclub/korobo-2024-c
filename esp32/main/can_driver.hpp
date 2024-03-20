@@ -26,6 +26,8 @@ class CANDriver {
   float bus_load_ = 0.0f;
   bool bus_locked = false;
 
+  void DropTxBuffer() { tx_buffer_.clear(); }
+
   static void AlertLoop(void* args) {
     static const char* TAG = "AlertWatcher#CANDriver";
 
@@ -48,17 +50,17 @@ class CANDriver {
 
       if (alerts & TWAI_ALERT_TX_FAILED) {
         ESP_LOGE(TAG, "TX failed");
+        self.bus_locked = true;
+        self.DropTxBuffer();
       }
 
       if (alerts & TWAI_ALERT_BUS_RECOVERED) {
         ESP_LOGI(TAG, "Bus recovered");
-        self.bus_locked = false;
         twai_start_v2(driver);
       }
       if (alerts & TWAI_ALERT_BUS_OFF) {
         ESP_LOGE(TAG, "Recovering Bus...");
         twai_initiate_recovery_v2(driver);
-        self.bus_locked = true;
       }
 
       if (alerts & TWAI_ALERT_RX_DATA) {
@@ -72,6 +74,16 @@ class CANDriver {
           ESP_LOGE(TAG, "Failed to receive TWAI message: %s",
                    esp_err_to_name(status));
           continue;
+        }
+
+        if (self.bus_locked) {
+          self.bus_locked = false;
+          ESP_LOGI(TAG, "Bus established!");
+          ESP_LOGI(TAG, "  - Message: 0x%08lx", msg.identifier);
+          ESP_LOGI(TAG, "  - DLC: %d", msg.data_length_code);
+          ESP_LOGI(TAG, "  - Data: %02x %02x %02x %02x %02x %02x %02x %02x",
+                   msg.data[0], msg.data[1], msg.data[2], msg.data[3],
+                   msg.data[4], msg.data[5], msg.data[6], msg.data[7]);
         }
 
         std::vector<uint8_t> data(msg.data_length_code);
@@ -199,8 +211,9 @@ class CANDriver {
 
     general_config.rx_queue_len = 50;
     general_config.tx_queue_len = 50;
-    general_config.alerts_enabled =
-        TWAI_ALERT_TX_FAILED | TWAI_ALERT_BUS_RECOVERED | TWAI_ALERT_BUS_OFF;
+    general_config.alerts_enabled = TWAI_ALERT_RX_DATA | TWAI_ALERT_TX_FAILED |
+                                    TWAI_ALERT_BUS_RECOVERED |
+                                    TWAI_ALERT_BUS_OFF;
 
     auto status = twai_driver_install_v2(&general_config, &timing_config,
                                          &filter_config, &twai_driver_);
@@ -228,8 +241,6 @@ class CANDriver {
     });
 
     xTaskCreate(CANDriver::AlertLoop, "AlertLoop#CAN", 4096, this, 1, NULL);
-    xTaskCreate(CANDriver::MessageWatcher, "MessageWatcher#CAN", 4096, this, 15,
-                NULL);
     xTaskCreate(CANDriver::BitSampleThread, "BitSampleThread#CAN", 4096, this,
                 1, NULL);
 
@@ -238,6 +249,14 @@ class CANDriver {
   }
 
   void SendStd(uint32_t id, std::vector<uint8_t> const& data) {
+    if (bus_locked) {
+      return;
+    }
+
+    if (tx_buffer_.size() > 50) {
+      ESP_LOGW("CANDriver", "Tx buffer is full, dropping message");
+      return;
+    }
     this->tx_buffer_.emplace_back(id, data);
   }
 
