@@ -4,6 +4,46 @@
 
 #include <mbed.h>
 
+class Color {
+ public:
+  float r;
+  float g;
+  float b;
+
+  Color(float r, float g, float b) : r(r), g(g), b(b) {}
+
+  Color(uint32_t rgb)
+      : r((rgb >> 16) & 0xFF), g((rgb >> 8) & 0xFF), b(rgb & 0xFF) {}
+
+  Color operator+(Color const &other) {
+    return Color(r + other.r, g + other.g, b + other.b);
+  }
+
+  Color operator-(Color const &other) {
+    return Color(r - other.r, g - other.g, b - other.b);
+  }
+
+  Color operator*(float const &other) {
+    return Color(r * other, g * other, b * other);
+  }
+
+  Color operator*(int const &other) {
+    return Color(r * other, g * other, b * other);
+  }
+
+  Color operator/(int const &other) {
+    return Color(r / other, g / other, b / other);
+  }
+
+  uint32_t ToRGB() {
+    uint8_t r = (uint8_t)(this->r > 255 ? 255 : this->r);
+    uint8_t g = (uint8_t)(this->g > 255 ? 255 : this->g);
+    uint8_t b = (uint8_t)(this->b > 255 ? 255 : this->b);
+
+    return (r << 16) | (g << 8) | b;
+  }
+};
+
 class NeoPixel {
   static constexpr int kResetSize = 48 * 2;
   static std::vector<uint8_t> reset;
@@ -50,7 +90,10 @@ class NeoPixel {
     }
   }
 
-  void Write() { spi.write((char *)data.data(), data.size(), nullptr, 0); }
+  void Write() {
+    // Debug();
+    spi.write((char *)data.data(), data.size(), nullptr, 0);
+  }
 
   void Debug() {
     for (size_t i = 0; i < data.size(); i++) {
