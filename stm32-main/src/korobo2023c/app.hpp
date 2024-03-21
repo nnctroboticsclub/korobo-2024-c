@@ -10,46 +10,6 @@
 
 #include "neopixel.hpp"
 
-class Color {
- public:
-  uint32_t r;
-  uint32_t g;
-  uint32_t b;
-
-  Color(uint8_t r, uint8_t g, uint8_t b) : r(r), g(g), b(b) {}
-
-  Color(uint32_t rgb)
-      : r((rgb >> 16) & 0xFF), g((rgb >> 8) & 0xFF), b(rgb & 0xFF) {}
-
-  Color operator+(Color const &other) {
-    return Color(r + other.r, g + other.g, b + other.b);
-  }
-
-  Color operator-(Color const &other) {
-    return Color(r - other.r, g - other.g, b - other.b);
-  }
-
-  Color operator*(float const &other) {
-    return Color(r * other, g * other, b * other);
-  }
-
-  Color operator*(int const &other) {
-    return Color(r * other, g * other, b * other);
-  }
-
-  Color operator/(int const &other) {
-    return Color(r / other, g / other, b / other);
-  }
-
-  uint32_t ToRGB() {
-    uint8_t r = this->r > 255 ? 255 : this->r;
-    uint8_t g = this->g > 255 ? 255 : this->g;
-    uint8_t b = this->b > 255 ? 255 : this->b;
-
-    return (r << 16) | (g << 8) | b;
-  }
-};
-
 class App {
  public:
   struct Config {
@@ -76,8 +36,9 @@ class App {
   korobo2023c::Upper upper_;
 
   //* Thread
-  Thread *thr1;  //* mAIN
-  Thread *thr2;  //* nEOpIXEL
+  Thread *thr1;  //* Main
+  Thread *thr2;  //* NeoPixel
+  Thread *thr3;  //* Report
 
   std::atomic<bool> prevent_swerve_update;
 
@@ -112,15 +73,12 @@ class App {
   void MainThread() {
     int i = 0;
     while (1) {
-      com_->SendNonReactiveValues();
-
       if (!prevent_swerve_update) {
         swerve_->swerve_.Update(0.01f);
       }
       upper_.Update(0.01f);
 
-      if (i % 10 == 0) {  // interval: 100ms = 0.100s
-        DoReport();
+      if (i % 100 == 0) {  // interval: 100ms = 0.100s
 
         if (config_.encoder_debug)
           printf(" Encoder: %6.4lf %6.4lf %6.4lf\n",
@@ -131,6 +89,14 @@ class App {
         i = 0;
       }
       i++;
+
+      ThisThread::sleep_for(1ms);
+    }
+  }
+  void ReportThread() {
+    while (1) {
+      com_->SendNonReactiveValues();
+      DoReport();
 
       ThisThread::sleep_for(1ms);
     }
@@ -268,6 +234,10 @@ class App {
     printf("\e[1;32m|\e[m \e[32m-\e[m Starting NeoPixel Thread\n");
     thr2 = new Thread(osPriorityNormal, 1024 * 4);
     thr2->start(callback(this, &App::NeoPixelThread));
+
+    printf("\e[1;32m|\e[m \e[32m-\e[m Starting Report Thread\n");
+    thr3 = new Thread(osPriorityNormal, 1024 * 4);
+    thr3->start(callback(this, &App::ReportThread));
 
     emc = 1;
     com_->Init();
