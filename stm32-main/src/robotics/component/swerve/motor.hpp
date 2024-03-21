@@ -23,6 +23,7 @@ class Motor {
  private:
   Vector<float, 2> normal_vector_;
   filter::Joystick2Angle angle_power;
+  float angle_deg;
 
   void UpdateAnglePower() {
     auto rot = rotation.GetValue();
@@ -33,12 +34,15 @@ class Motor {
         -vel_[0],
     };
 
-    auto vector_ = vel + normal_vector_ * rot / 90;
+    // auto vector_ = vel + normal_vector_ * rot / 90;
+    auto vector_ =
+        vel * (1 - 1.0f / 3 * rot / 90 *
+                       sin(angle_deg * M_PI / 180 + atan2(vel[1], vel[0])));
     vector.SetValue(vector_);
   }
 
  public:
-  Motor(float angle_deg) : drive_(0) {
+  Motor(float angle_deg) : drive_(0), angle_deg(angle_deg) {
     normal_vector_[0] = std::cos(angle_deg * M_PI / 180);
     normal_vector_[1] = std::sin(angle_deg * M_PI / 180);
 
