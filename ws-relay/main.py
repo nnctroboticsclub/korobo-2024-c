@@ -71,6 +71,7 @@ class UDPServer:
                 # print(f"{data.hex()}")
                 for client in connected_clients:
                     try:
+                        # if client.
                         await client.send_bytes(data)
                     except WebSocketDisconnect:
                         pass
@@ -82,7 +83,6 @@ class UDPServer:
 
     async def stop(self):
         self.stop_ = 1
-        await asyncio.sleep(1)
 
 
 class IPReporter:
@@ -126,6 +126,7 @@ class IPReporter:
 @asynccontextmanager
 async def start_server(app: FastAPI):
     import os
+
     udp_host = os.environ.get("UDP_BRD_HOST", "0.0.0.0")
 
     server_receiver = UDPServer(udp_host, 8001)
