@@ -44,6 +44,8 @@ class Upper {
       uint8_t shot_r_factor_id;
 
       uint8_t revolver_pid_id;
+      uint8_t rotation_factor_id;
+      uint8_t elevation_factor_id;
     };
 
     controller::JoyStick shot;            // upper
@@ -57,7 +59,9 @@ class Upper {
     controller::Float shot_l_factor;  // upper
     controller::Float shot_r_factor;  // upper
 
-    controller::PID revolver_pid;  // uppe
+    controller::PID revolver_pid;        // uppe
+    controller::Float rotation_factor;   // upper
+    controller::Float elevation_factor;  // upper
 
     Controller(Config const& config = {})
         : shot(config.shot_joystick_id),
@@ -69,7 +73,9 @@ class Upper {
           revolver_change(config.revolver_change_id),
           shot_l_factor(config.shot_l_factor_id),
           shot_r_factor(config.shot_r_factor_id),
-          revolver_pid(config.revolver_pid_id)
+          revolver_pid(config.revolver_pid_id),
+          rotation_factor(config.rotation_factor_id),
+          elevation_factor(config.elevation_factor_id)
 
     {}
 
@@ -78,12 +84,13 @@ class Upper {
              do_load.Pass(packet) || shot_speed.Pass(packet) ||
              load_speed.Pass(packet) || max_elevation.Pass(packet) ||
              revolver_change.Pass(packet) || shot_l_factor.Pass(packet) ||
-             shot_r_factor.Pass(packet) || revolver_pid.Pass(packet);
+             shot_r_factor.Pass(packet) || revolver_pid.Pass(packet) ||
+             rotation_factor.Pass(packet) || elevation_factor.Pass(packet);
     }
   };
 
-  AngledMotor elevation_motor;
-  AngledMotor rotation_motor;
+  Node<float> elevation_motor;
+  Node<float> rotation_motor;
   // IncAngledMotor revolver;
   std::unique_ptr<Motor> revolver;
 
@@ -91,6 +98,8 @@ class Upper {
   std::unique_ptr<Motor> shot_l;
 
   Node<float> load;
+  Node<float> elevation_motor_factor;
+  Node<float> rotation_motor_factor;
 
  private:
   Controller& ctrl;
@@ -175,13 +184,16 @@ class Upper {
     ctrl.shot_l_factor.Link(shot_l->factor);
     ctrl.shot_r_factor.Link(shot_r->factor);
 
+    ctrl.elevation_factor.Link(elevation_motor_factor);
+    ctrl.rotation_factor.Link(rotation_motor_factor);
+
     // controller.revolver_pid.Link(revolver.pid.gains);
   }
 
   void Update(float dt) {
-    elevation_motor.Update(dt);
-    rotation_motor.Update(dt);
-    //     revolver.Update(dt);
+    // elevation_motor.Update(dt);
+    // rotation_motor.Update(dt);
+    // revolver.Update(dt);
 
     switch (load_state) {
       case LoadState::kInRotation:
@@ -200,20 +212,20 @@ class Upper {
 
   // 仰角
   void SetElevationAngle(float angle) {
-    elevation_motor.goal.SetValue(
-        angle > max_elevation_angle ? max_elevation_angle : angle);
+    elevation_motor.SetValue(angle > max_elevation_angle ? max_elevation_angle
+                                                         : angle);
   }
 
   // 最大仰角
   void SetMaxElevationAngle(float angle) {
     max_elevation_angle = angle;
-    if (elevation_motor.goal.GetValue() > angle) {
-      elevation_motor.goal.SetValue(angle);
+    if (elevation_motor.GetValue() > angle) {
+      elevation_motor.SetValue(angle);
     }
   }
 
   // 横の角
-  void SetRotationAngle(float angle) { rotation_motor.goal.SetValue(angle); }
+  void SetRotationAngle(float angle) { rotation_motor.SetValue(angle); }
 
   // 発射速度
   void SetShotSpeed(float cent) { shot_speed.SetValue(cent); }

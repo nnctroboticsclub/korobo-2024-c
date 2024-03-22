@@ -248,6 +248,8 @@ int main_pro() {
                               .shot_l_factor_id = 6,
                               .shot_r_factor_id = 7,
                               .revolver_pid_id = 6,
+                              .rotation_factor_id = 8,
+                              .elevation_factor_id = 9,
                           },
                       .soft_emc_id = 3,
                       .esc_factor_0_id = 2,

@@ -176,16 +176,13 @@ class Communication {
   void LinkToUpper(korobo2023c::Upper &upper) {
     {
       auto &motor = driving_->GetElevation();
-      // upper.elevation_motor.Link(motor.GetMotor());
-      motor.GetEncoder() >> upper.elevation_motor.feedback;
-      upper.elevation_motor.goal >> motor.GetMotor();
-      motor.GetMotor().factor.SetValue(1);
+      upper.elevation_motor >> motor.GetMotor();
+      upper.elevation_motor_factor >> motor.GetMotor().factor;
     }
     {
       auto &motor = driving_->GetHorizontal();
-      // upper.elevation_motor.Link(motor.GetMotor());
-      motor.GetEncoder() >> upper.rotation_motor.feedback;
-      upper.rotation_motor.goal >> motor.GetMotor();
+      upper.rotation_motor >> motor.GetMotor();
+      upper.rotation_motor_factor >> motor.GetMotor().factor;
     }
     {
       auto &motor = driving_->GetLoad();
