@@ -5,7 +5,8 @@
 
 SER1    = 066EFF303435554157121019
 # SER1    = 0670FF3932504E3043102150 # F747
-SER2    = 0668FF383333554157243840
+# SER2    = 0668FF383333554157243840
+SER2 = 066AFF495057717867162927
 
 
 _MCU1   = $(shell grep -l ${SER1} /sys/bus/usb/devices/*/serial)
@@ -157,10 +158,12 @@ cs1t:
 		) \
 		-o stm32-main.elf
 
+TIME := $(shell date +%Y%m%d-%H%M%S)
+
 fs1: $(MNT1)/MBED.HTM $(S1_BIN)
 	cd /workspaces/korobo2023/stm32-main && \
-		sudo cp BUILD/$(S1BOARD)/GCC_ARM/stm32-main.bin $(MNT1)/binary.bin && \
-		sudo sync $(MNT1)/binary.bin
+		sudo cp BUILD/$(S1BOARD)/GCC_ARM/stm32-main.bin $(MNT1)/binary-$(TIME).bin && \
+		sudo sync $(MNT1)/binary-$(TIME).bin
 
 fs1w: $(S1_BIN)
 	./upload_flash.sh $(ESP32_IP) $(S1_BIN)
