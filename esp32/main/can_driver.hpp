@@ -178,6 +178,11 @@ class CANDriver {
       return false;
     }
 
+    if (bus_locked) {
+      ESP_LOGW(TAG, "Droped data, id=%#5lx, DLC=%d\n", id, data.size());
+      return false;
+    }
+
     twai_message_t msg = {
         .extd = 0,
         .identifier = id,
@@ -250,6 +255,7 @@ class CANDriver {
 
   void SendStd(uint32_t id, std::vector<uint8_t> const& data) {
     if (bus_locked) {
+      ESP_LOGW("CANDriver", "Droped TX message");
       return;
     }
 

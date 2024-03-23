@@ -77,8 +77,30 @@ class App {
                  .ip = 0,
                  .subnet = 0,
                  .gateway = 0,
+             },
+             InitConfig::NetworkProfile{
+                 .id = 10,
+                 .is_ap = false,
+                 .is_static = false,
+                 .ssid = "Pixel_4846",
+                 .password = "aaaabbbb",
+                 .hostname = "esp32",
+                 .ip = 0,
+                 .subnet = 0,
+                 .gateway = 0,
+             },
+             InitConfig::NetworkProfile{
+                 .id = 11,
+                 .is_ap = false,
+                 .is_static = false,
+                 .ssid = "Pixel_4846",
+                 .password = "aaaabbbb",
+                 .hostname = "esp32",
+                 .ip = 0,
+                 .subnet = 0,
+                 .gateway = 0,
              }},
-        .active_network_profile_id = 4,
+        .active_network_profile_id = 10,
         .primary_stm32_id = 2};
 
     return init_config;
@@ -160,6 +182,16 @@ class App {
           }
         },
         "LoadReporting", 4096, this, 1, NULL);
+
+    xTaskCreate(
+        [](void* args) {
+          auto& app = *static_cast<App*>(args);
+          while (1) {
+            app.can_.KeepAlive();
+            vTaskDelay(pdMS_TO_TICKS(10));
+          }
+        },
+        "KeepAlive", 4096, this, 1, NULL);
 
     xTaskCreate(
         [](void* args) {

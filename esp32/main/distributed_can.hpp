@@ -50,5 +50,7 @@ class KoroboCANDriver {
 
   void Ping() { SendStd(0x80, {}); }
 
+  void KeepAlive() { SendStd(0xfc, {}); }
+
   void OnPong(PongListener cb) { pong_listeners_.emplace_back(cb); }
 };

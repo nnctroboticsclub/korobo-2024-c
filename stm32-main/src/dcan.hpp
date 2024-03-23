@@ -15,6 +15,7 @@ class SimpleCAN {
       std::function<void(std::uint32_t, std::vector<uint8_t> const &)>;
   using TxCallback =
       std::function<void(std::uint32_t, std::vector<uint8_t> const &)>;
+  using IdleCallback = std::function<void()>;
 
  private:
   CAN can_;
@@ -22,6 +23,7 @@ class SimpleCAN {
 
   std::vector<RxCallback> rx_callbacks_;
   std::vector<TxCallback> tx_callbacks_;
+  std::vector<IdleCallback> idle_callbacks_;
 
   Thread *thread_;
 
@@ -36,6 +38,12 @@ class SimpleCAN {
       if (can_.read(msg)) {
         for (auto const &cb : rx_callbacks_) {
           cb(msg.id, std::vector<uint8_t>(msg.data, msg.data + msg.len));
+        }
+      }
+
+      if (!this->idle_callbacks_.empty()) {
+        for (auto cb : this->idle_callbacks_) {
+          cb();
         }
       }
     }
@@ -66,6 +74,8 @@ class SimpleCAN {
   void OnRx(RxCallback cb) { rx_callbacks_.emplace_back(cb); }
 
   void OnTx(TxCallback cb) { tx_callbacks_.emplace_back(cb); }
+
+  void OnIdle(IdleCallback cb) { idle_callbacks_.emplace_back(cb); }
 };
 
 class DistributedCAN {
@@ -83,11 +93,20 @@ class DistributedCAN {
     std::function<void(std::vector<uint8_t>)> cb;
   };
 
+  using KeepAliveLostCallback = std::function<void()>;
+  using KeepAliveRecoverdCallback = std::function<void()>;
+
  private:
   int can_id = 0x7;
   SimpleCAN can_;
+  int last_keep_alive = 0;
+  Timer keep_alive_timer;
 
   std::vector<EventCallback> callbacks_;
+
+  bool keep_alive_available;
+  std::vector<KeepAliveLostCallback> keep_alive_lost_callbacks_;
+  std::vector<KeepAliveRecoverdCallback> keep_alive_recovered_callbacks_;
 
   inline void HandleMessage(uint32_t id, std::vector<uint8_t> const &data) {
     for (auto const &cb : callbacks_) {
@@ -99,7 +118,9 @@ class DistributedCAN {
 
  public:
   DistributedCAN(int can_id, PinName rx, PinName tx, int freqency = 50E3)
-      : can_id(can_id), can_(rx, tx, freqency) {}
+      : can_id(can_id), can_(rx, tx, freqency) {
+    keep_alive_timer.start();
+  }
 
   void Init() {
     can_.Init();
@@ -109,6 +130,27 @@ class DistributedCAN {
 
     OnEvent(0x80, [this](std::vector<uint8_t> data) {
       can_.Send(0x81 + can_id, {});
+    });
+
+    OnEvent(0xfc, [this](std::vector<uint8_t> _) {
+      // printf("Keepalive!\n");
+      keep_alive_timer.reset();
+    });
+    can_.OnIdle([this]() {
+      auto timer = keep_alive_timer.read_ms();
+      if (keep_alive_available && 300 < timer) {
+        printf("Keepalive Lost!\n");
+        keep_alive_available = false;
+        for (auto &&cb : this->keep_alive_lost_callbacks_) {
+          cb();
+        }
+      } else if (!keep_alive_available && timer < 300) {
+        printf("Keepalive Get!\n");
+        keep_alive_available = true;
+        for (auto &&cb : this->keep_alive_recovered_callbacks_) {
+          cb();
+        }
+      }
     });
 
     SetStatus(Statuses::kCANReady);
@@ -121,6 +163,13 @@ class DistributedCAN {
 
   void OnRx(SimpleCAN::RxCallback cb) { can_.OnRx(cb); }
   void OnTx(SimpleCAN::TxCallback cb) { can_.OnTx(cb); }
+  void OnIdle(SimpleCAN::IdleCallback cb) { can_.OnIdle(cb); }
+  void OnKeepAliveLost(KeepAliveLostCallback cb) {
+    this->keep_alive_lost_callbacks_.emplace_back(cb);
+  }
+  void OnKeepAliveRecovered(KeepAliveRecoverdCallback cb) {
+    this->keep_alive_recovered_callbacks_.emplace_back(cb);
+  }
 
   int Send(uint8_t element_id, std::vector<uint8_t> const &data) {
     return can_.Send(element_id, data);

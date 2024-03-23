@@ -29,6 +29,8 @@ class App {
   std::unique_ptr<Communication> com_;
 
   //* Robotics components
+  bool emc_ctrl;
+  bool emc_keep_alive;
   mbed::DigitalOut emc;
 
   //* Components
@@ -43,6 +45,13 @@ class App {
   std::atomic<bool> prevent_swerve_update;
 
   NeoPixel led_strip{PB_2, 20};
+
+  void UpdateEMC() {
+    auto emc_flag = (emc_ctrl && emc_keep_alive) ? true : false;
+    printf("EMC --> %s\n", emc_flag ? "True" : "False");
+    // emc = emc_ctrl;
+    emc = emc_flag;
+  }
 
   void DoReport() {
     swerve_->ReportTo(com_->can_);
@@ -96,7 +105,7 @@ class App {
   void ReportThread() {
     while (1) {
       com_->SendNonReactiveValues();
-      DoReport();
+      // DoReport();
 
       ThisThread::sleep_for(1ms);
     }
@@ -177,7 +186,17 @@ class App {
 
     com_->controller_status_.soft_emc.SetChangeCallback([this](bool emc) {
       printf("EMC setted to %d\n", emc);
-      this->emc = !emc;
+      this->emc_ctrl = !emc;
+      this->UpdateEMC();
+    });
+
+    this->com_->can_.OnKeepAliveLost([this]() {
+      this->emc_keep_alive = 0;
+      this->UpdateEMC();
+    });
+    this->com_->can_.OnKeepAliveRecovered([this]() {
+      this->emc_keep_alive = 1;
+      this->UpdateEMC();
     });
   }
 
