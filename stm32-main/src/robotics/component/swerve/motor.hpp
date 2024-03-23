@@ -36,7 +36,7 @@ class Motor {
 
     // auto vector_ = vel + normal_vector_ * rot / 90;
     auto vector_ =
-        vel * (1 - 1.0f / 3 * rot / 90 *
+        vel * (1 + 1.0f / 3 * rot / 90 *
                        sin(angle_deg * M_PI / 180 + atan2(vel[1], vel[0])));
     vector.SetValue(vector_);
   }
