@@ -277,7 +277,7 @@ class Upper {
   void RevolverChange(RevolverAction state) {
     switch (state) {
       case RevolverAction::kStartRotation:
-        revolver->SetValue(0.5);
+        revolver->SetValue(0.7);
         break;
 
       case RevolverAction::kStopRotation:
