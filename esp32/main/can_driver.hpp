@@ -100,43 +100,11 @@ class CANDriver {
     }
   }
 
-  static void MessageWatcher(void* args) {
-    static const char* TAG = "MessageWatcher#CANDriver";
-
-    auto& self = *static_cast<CANDriver*>(args);
-    auto driver = self.twai_driver_;
-
-    while (1) {
-      twai_message_t msg;
-      auto status = twai_receive_v2(driver, &msg, 500 / portTICK_PERIOD_MS);
-      if (status == ESP_ERR_TIMEOUT) {
-        continue;
-      }
-
-      if (status != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to receive TWAI message: %s",
-                 esp_err_to_name(status));
-        continue;
-      }
-
-      std::vector<uint8_t> data(msg.data_length_code);
-      std::copy(msg.data, msg.data + msg.data_length_code, data.begin());
-
-      for (auto& cb : self.callbacks_[msg.identifier]) {
-        cb(msg.identifier, data);
-      }
-
-      for (auto& cb : self.rx_callbacks_) {
-        cb(msg.identifier, data);
-      }
-    }
-  }
-
   static void TxBufferSender(void* args) {
     auto self = static_cast<CANDriver*>(args);
 
     while (1) {
-      if (self->tx_buffer_.size() > 0) {
+      if (!self->bus_locked && self->tx_buffer_.size() > 0) {
         auto buffer = self->tx_buffer_;
         self->tx_buffer_.clear();
 
@@ -179,7 +147,7 @@ class CANDriver {
     }
 
     if (bus_locked) {
-      ESP_LOGW(TAG, "Droped data, id=%#5lx, DLC=%d\n", id, data.size());
+      ESP_LOGW(TAG, "Droped cached data, id=%#5lx, DLC=%d\n", id, data.size());
       return false;
     }
 
@@ -255,7 +223,6 @@ class CANDriver {
 
   void SendStd(uint32_t id, std::vector<uint8_t> const& data) {
     if (bus_locked) {
-      ESP_LOGW("CANDriver", "Droped TX message");
       return;
     }
 
