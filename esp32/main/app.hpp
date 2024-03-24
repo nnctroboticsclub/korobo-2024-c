@@ -93,14 +93,25 @@ class App {
                  .id = 11,
                  .is_ap = false,
                  .is_static = false,
-                 .ssid = "Pixel_4846",
-                 .password = "aaaabbbb",
+                 .ssid = "KanatasiPhone",
+                 .password = "6cyZ-Kb9T-stcf-PqDV",
+                 .hostname = "esp32",
+                 .ip = 0,
+                 .subnet = 0,
+                 .gateway = 0,
+             },
+             InitConfig::NetworkProfile{
+                 .id = 12,
+                 .is_ap = false,
+                 .is_static = false,
+                 .ssid = "me34011v_0414",
+                 .password = "12345678",
                  .hostname = "esp32",
                  .ip = 0,
                  .subnet = 0,
                  .gateway = 0,
              }},
-        .active_network_profile_id = 10,
+        .active_network_profile_id = 12,
         .primary_stm32_id = 2};
 
     return init_config;
@@ -164,7 +175,7 @@ class App {
             vTaskDelay(pdMS_TO_TICKS(5000));
           }
         },
-        "PingTask", 4096, this, 1, NULL);
+        "PingTask", 8192, this, 1, NULL);
 
     xTaskCreate(
         [](void* args) {
@@ -181,7 +192,7 @@ class App {
             vTaskDelay(pdMS_TO_TICKS(500));
           }
         },
-        "LoadReporting", 4096, this, 1, NULL);
+        "LoadReporting", 8192, this, 1, NULL);
 
     xTaskCreate(
         [](void* args) {
@@ -191,14 +202,14 @@ class App {
             vTaskDelay(pdMS_TO_TICKS(10));
           }
         },
-        "KeepAlive", 4096, this, 1, NULL);
+        "KeepAlive", 8192, this, 1, NULL);
 
     xTaskCreate(
         [](void* args) {
           auto& app = *static_cast<App*>(args);
           app.client.Thread();
         },
-        "TCPClient", 4096, this, 4, NULL);
+        "TCPClient", 16384, this, 4, NULL);
 
     stm32::ota::OTAServer ota_server = this->StartOTAServer();
 

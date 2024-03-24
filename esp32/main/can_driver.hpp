@@ -19,14 +19,14 @@ class CANDriver {
   std::vector<Callback> rx_callbacks_;
   std::vector<Callback> tx_callbacks_;
 
-  std::vector<std::pair<uint16_t, std::vector<uint8_t>>> tx_buffer_;
+  std::vector<std::pair<uint16_t, std::vector<uint8_t>>> tx_buffer_dep_;
 
   int bits_per_sample_ = 0;
   std::queue<int> bits_per_samples_ = std::queue<int>();
   float bus_load_ = 0.0f;
   bool bus_locked = false;
 
-  void DropTxBuffer() { tx_buffer_.clear(); }
+  void DropTxBuffer() { tx_buffer_dep_.clear(); }
 
   static void AlertLoop(void* args) {
     static const char* TAG = "AlertWatcher#CANDriver";
@@ -104,13 +104,11 @@ class CANDriver {
     auto self = static_cast<CANDriver*>(args);
 
     while (1) {
-      if (!self->bus_locked && self->tx_buffer_.size() > 0) {
-        auto buffer = self->tx_buffer_;
-        self->tx_buffer_.clear();
-
-        for (auto& [id, data] : buffer) {
+      if (!self->bus_locked && self->tx_buffer_dep_.size() > 0) {
+        for (auto& [id, data] : self->tx_buffer_dep_) {
           self->DoSendStd(id, data);
         }
+        self->tx_buffer_dep_.clear();
       } else {
         vTaskDelay(pdMS_TO_TICKS(10));
       }
@@ -173,7 +171,9 @@ class CANDriver {
   }
 
  public:
-  CANDriver() : twai_driver_(nullptr), callbacks_(), bus_locked(false) {}
+  CANDriver() : twai_driver_(nullptr), callbacks_(), bus_locked(false) {
+    tx_buffer_dep_.reserve(50);
+  }
 
   void Init(gpio_num_t tx, gpio_num_t rx) {
     static const char* TAG = "Init#CANDriver";
@@ -226,11 +226,12 @@ class CANDriver {
       return;
     }
 
-    if (tx_buffer_.size() > 50) {
+    /* if (tx_buffer_dep_.size() > 50) {
       ESP_LOGW("CANDriver", "Tx buffer is full, dropping message");
       return;
     }
-    this->tx_buffer_.emplace_back(id, data);
+    this->tx_buffer_dep_.emplace_back(id, data); */
+    DoSendStd(id, data);
   }
 
   void OnMessage(uint32_t id, Callback cb) {

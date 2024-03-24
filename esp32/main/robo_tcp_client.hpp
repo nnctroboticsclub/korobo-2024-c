@@ -78,8 +78,7 @@ class RoboTCPClient {
 
   void Thread() {
     std::vector<uint8_t> buf{0};
-    sockaddr_in remote_addr;
-    socklen_t remote_addr_len = sizeof(remote_addr);
+    socklen_t remote_addr_len = 0;
     while (1) {
       if (sock == -1) {
         vTaskDelay(1000 / portTICK_PERIOD_MS);
@@ -88,12 +87,12 @@ class RoboTCPClient {
 
       std::vector<uint8_t> chunk;
       chunk.resize(0x10);
-      auto ret = recvfrom(                 //
-          this->sock,                      //
-          chunk.data(), chunk.size(),      //
-          0,                               //
-          (struct sockaddr*)&remote_addr,  //
-          &remote_addr_len                 //
+      auto ret = recvfrom(             //
+          this->sock,                  //
+          chunk.data(), chunk.size(),  //
+          0,                           //
+          nullptr,                     //
+          &remote_addr_len             //
       );
       if (ret < 0) {
         ESP_LOGE("RoboTCP", "recv failed\n");

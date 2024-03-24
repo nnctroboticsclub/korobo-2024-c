@@ -105,7 +105,7 @@ class App {
   void ReportThread() {
     while (1) {
       com_->SendNonReactiveValues();
-      // DoReport();
+      DoReport();
 
       ThisThread::sleep_for(1ms);
     }

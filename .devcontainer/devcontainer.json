@@ -21,7 +21,10 @@
 				"ms-vscode.cpptools",
 				"GitHub.copilot",
 				"SonarSource.sonarlint-vscode",
-				"ms-vscode.cpptools-extension-pack"
+				"ms-vscode.cpptools-extension-pack",
+				"ms-python.python",
+				"ms-toolsai.jupyter",
+				"charliermarsh.ruff"
 			]
 		}
 	},
