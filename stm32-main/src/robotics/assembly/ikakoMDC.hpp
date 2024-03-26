@@ -1,7 +1,7 @@
 #pragma once
 
 #include <ikakoMDC.h>
-#include "motor_with_encoder.hpp"
+#include "motor_pair.hpp"
 
 namespace robotics::node {
 
@@ -38,7 +38,7 @@ class ikakoMDCEncoder : public Node<T> {
 namespace robotics::assembly {
 
 template <typename T>
-class ikakoMDCPair : public MotorWithEncoder<T> {
+class ikakoMDCPair : public MotorPair<T> {
   node::ikakoMDCMotor<T> *motor_;
   node::ikakoMDCEncoder<T> *encoder_;
 

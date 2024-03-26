@@ -135,8 +135,8 @@ class Upper {
 
     load_speed.SetValue(-0.18);
     shot_speed.SetValue(0.25);
-    elevation_motor_factor.SetValue(0.5);
-    rotation_motor_factor.SetValue(0.5);
+    elevation_motor_factor.SetValue(0.4);
+    rotation_motor_factor.SetValue(0.3);
 
     load_mux.AddInput(zero);
     load_mux.AddInput(load_speed);

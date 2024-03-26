@@ -114,36 +114,28 @@ class App {
   void NeoPixelThread() {
     NeoPixel led(PB_2, 20);
 
-    int i = 0;
-    int j = 0;
-
-    Color buf[20] = {0x000000, 0x000000, 0x000000, 0x000000, 0x000000,
-                     0x000000, 0x000000, 0x000000, 0x000000, 0x000000,
-                     0x000000, 0x000000, 0x000000, 0x000000, 0x000000,
-                     0x000000, 0x000000, 0x000000, 0x000000, 0x00ff00};
-
     led.Clear();
 
-    led.PutPixel((20 + i + 0) % 20, 0x00ff00);
-    led.PutPixel((20 + i + 1) % 20, 0x00ff00);
-    led.PutPixel((20 + i + 2) % 20, 0x00ff00);
-    led.PutPixel((20 + i + 3) % 20, 0x00ff00);
-    led.PutPixel((20 + i + 4) % 20, 0x00ff00);
-    led.PutPixel((20 + i + 5) % 20, 0x00ff00);
-    led.PutPixel((20 + i + 6) % 20, 0x00ff00);
-    led.PutPixel((20 + i + 7) % 20, 0x00ff00);
-    led.PutPixel((20 + i + 8) % 20, 0x00ff00);
-    led.PutPixel((20 + i + 9) % 20, 0x00ff00);
-    led.PutPixel((20 + i + 10) % 20, 0x00ff00);
-    led.PutPixel((20 + i + 11) % 20, 0x00ff00);
-    led.PutPixel((20 + i + 12) % 20, 0x00ff00);
-    led.PutPixel((20 + i + 13) % 20, 0x00ff00);
-    led.PutPixel((20 + i + 14) % 20, 0x00ff00);
-    led.PutPixel((20 + i + 15) % 20, 0x00ff00);
-    led.PutPixel((20 + i + 16) % 20, 0x00ff00);
-    led.PutPixel((20 + i + 17) % 20, 0x00ff00);
-    led.PutPixel((20 + i + 18) % 20, 0x00ff00);
-    led.PutPixel((20 + i + 19) % 20, 0x00ff00);
+    led.PutPixel(0, 0x00ff00);
+    led.PutPixel(1, 0x00ff00);
+    led.PutPixel(2, 0x00ff00);
+    led.PutPixel(3, 0x00ff00);
+    led.PutPixel(4, 0x00ff00);
+    led.PutPixel(5, 0x00ff00);
+    led.PutPixel(6, 0x00ff00);
+    led.PutPixel(7, 0x00ff00);
+    led.PutPixel(8, 0x00ff00);
+    led.PutPixel(9, 0x00ff00);
+    led.PutPixel(10, 0x00ff00);
+    led.PutPixel(11, 0x00ff00);
+    led.PutPixel(12, 0x00ff00);
+    led.PutPixel(13, 0x00ff00);
+    led.PutPixel(14, 0x00ff00);
+    led.PutPixel(15, 0x00ff00);
+    led.PutPixel(16, 0x00ff00);
+    led.PutPixel(17, 0x00ff00);
+    led.PutPixel(18, 0x00ff00);
+    led.PutPixel(19, 0x00ff00);
 
     while (1) {
       led.Write();

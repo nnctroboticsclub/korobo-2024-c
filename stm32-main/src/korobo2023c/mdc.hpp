@@ -6,7 +6,7 @@
 #include <ikarashiCAN_mk2.h>
 
 #include "../robotics/assembly/ikakoMDC.hpp"
-#include "../robotics/assembly/dummy_motor_with_encoder.hpp"
+#include "../robotics/assembly/dummy_motor_pair.hpp"
 
 #include "../../dcan.hpp"
 
@@ -16,7 +16,7 @@ class MDC {
   std::array<robotics::assembly::ikakoMDCPair<float>, 4> motor_nodes_;
   ikarashiCAN_mk2 *linked_ican_;
 
-  robotics::assembly::DummyMotorWithEncoder<float> d;
+  robotics::assembly::DummyMotorPair<float> d;
 
   int report_counter = 0;
 
@@ -112,7 +112,7 @@ class MDC {
     return ret;
   }
 
-  robotics::assembly::MotorWithEncoder<float> &GetNode(int index) {
+  robotics::assembly::MotorPair<float> &GetNode(int index) {
     return motor_nodes_[index];
   }
 };

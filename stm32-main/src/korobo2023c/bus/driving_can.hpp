@@ -1,7 +1,7 @@
 #pragma once
 
 #include <ikarashiCAN_mk2.h>
-#include "../../robotics/assembly/motor_with_encoder.hpp"
+#include "../../robotics/assembly/motor_pair.hpp"
 
 #include "../mdc.hpp"
 #include "../../dcan.hpp"
@@ -47,33 +47,27 @@ class DrivingCANBus {
     report_counter = (report_counter + 1) % 3;
   }
 
-  robotics::assembly::MotorWithEncoder<float> &GetSwerveRot0() {
+  robotics::assembly::MotorPair<float> &GetSwerveRot0() {
     return mdc0_.GetNode(0);
   }
-  robotics::assembly::MotorWithEncoder<float> &GetSwerveRot1() {
+  robotics::assembly::MotorPair<float> &GetSwerveRot1() {
     return mdc0_.GetNode(1);
   }
-  robotics::assembly::MotorWithEncoder<float> &GetSwerveRot2() {
+  robotics::assembly::MotorPair<float> &GetSwerveRot2() {
     return mdc0_.GetNode(2);
   }
-  robotics::assembly::MotorWithEncoder<float> &GetRevolver() {
+  robotics::assembly::MotorPair<float> &GetRevolver() {
     return mdc0_.GetNode(3);
   }
 
-  robotics::assembly::MotorWithEncoder<float> &GetShotR() {
-    return mdc1_.GetNode(0);
-  }
-  robotics::assembly::MotorWithEncoder<float> &GetShotL() {
-    return mdc1_.GetNode(1);
-  }
-  robotics::assembly::MotorWithEncoder<float> &GetHorizontal() {
+  robotics::assembly::MotorPair<float> &GetShotR() { return mdc1_.GetNode(0); }
+  robotics::assembly::MotorPair<float> &GetShotL() { return mdc1_.GetNode(1); }
+  robotics::assembly::MotorPair<float> &GetHorizontal() {
     return mdc1_.GetNode(2);
   }
-  robotics::assembly::MotorWithEncoder<float> &GetElevation() {
+  robotics::assembly::MotorPair<float> &GetElevation() {
     return mdc1_.GetNode(3);
   }
 
-  robotics::assembly::MotorWithEncoder<float> &GetLoad() {
-    return mdc2_.GetNode(0);
-  }
+  robotics::assembly::MotorPair<float> &GetLoad() { return mdc2_.GetNode(0); }
 };

@@ -4,7 +4,7 @@
 
 namespace robotics::assembly {
 template <typename T, typename E = T>
-class MotorWithEncoder {
+class MotorPair {
  public:
   virtual node::Motor<T> &GetMotor() = 0;
   virtual Node<E> &GetEncoder() = 0;
