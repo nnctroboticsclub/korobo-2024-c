@@ -71,9 +71,8 @@ class UDPServer:
                 # print(f"{data.hex()}")
                 for client in connected_clients:
                     try:
-                        # if client.
                         await client.send_bytes(data)
-                    except WebSocketDisconnect:
+                    except:
                         pass
 
             if buffer:
