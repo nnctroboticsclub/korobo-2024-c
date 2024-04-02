@@ -192,7 +192,7 @@ class Upper {
     // controller.revolver_pid.Link(revolver.pid.gains);
   }
 
-  void Update(float dt) {
+  void Update(float /* dt */) {
     // elevation_motor.Update(dt);
     // rotation_motor.Update(dt);
     // revolver.Update(dt);

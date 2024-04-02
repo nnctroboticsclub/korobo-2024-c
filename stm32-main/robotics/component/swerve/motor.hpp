@@ -47,9 +47,9 @@ class Motor {
     normal_vector_[1] = std::sin(angle_deg * M_PI / 180);
 
     velocity.SetChangeCallback(
-        [this](Vector<float, 2> vector) { UpdateAnglePower(); });
+        [this](Vector<float, 2>) { UpdateAnglePower(); });
 
-    rotation.SetChangeCallback([this](float angle) { UpdateAnglePower(); });
+    rotation.SetChangeCallback([this](float) { UpdateAnglePower(); });
 
     vector.Link(angle_power.in);
 

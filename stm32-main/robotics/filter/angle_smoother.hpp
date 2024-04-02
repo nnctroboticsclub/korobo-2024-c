@@ -36,7 +36,7 @@ class AngleNormalizer {
     });
 
     offset.SetChangeCallback(
-        [this](T _offset) { input.SetValue(input.GetValue()); });
+        [this](T /*offset*/) { input.SetValue(input.GetValue()); });
   }
 
   void Reset() {

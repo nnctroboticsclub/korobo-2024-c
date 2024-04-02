@@ -68,10 +68,10 @@ void DistributedCAN::Init() {
     this->HandleMessage(id, data);
   });
 
-  OnEvent(0x80,
-          [this](std::vector<uint8_t> data) { can_.Send(0x81 + can_id, {}); });
+  //* Ping
+  OnEvent(0x80, [this](std::vector<uint8_t>) { can_.Send(0x81 + can_id, {}); });
 
-  OnEvent(0xfc, [this](std::vector<uint8_t> _) {
+  OnEvent(0xfc, [this](std::vector<uint8_t>) {
     // printf("Keepalive!\n");
     keep_alive_timer.reset();
   });
