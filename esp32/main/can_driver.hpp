@@ -19,14 +19,16 @@ class CANDriver {
   std::vector<Callback> rx_callbacks_;
   std::vector<Callback> tx_callbacks_;
 
-  std::vector<std::pair<uint16_t, std::vector<uint8_t>>> tx_buffer_dep_;
+  std::queue<std::pair<uint16_t, std::vector<uint8_t>>> tx_queue_;
 
   int bits_per_sample_ = 0;
   std::queue<int> bits_per_samples_ = std::queue<int>();
   float bus_load_ = 0.0f;
   bool bus_locked = false;
 
-  void DropTxBuffer() { tx_buffer_dep_.clear(); }
+  void DropTxBuffer() {
+    while (!tx_queue_.empty()) tx_queue_.pop();
+  }
 
   static void AlertLoop(void* args) {
     static const char* TAG = "AlertWatcher#CANDriver";
@@ -62,40 +64,46 @@ class CANDriver {
         ESP_LOGE(TAG, "Recovering Bus...");
         twai_initiate_recovery_v2(driver);
       }
+    }
+  }
 
-      if (alerts & TWAI_ALERT_RX_DATA) {
-        twai_message_t msg;
-        auto status = twai_receive_v2(driver, &msg, 500 / portTICK_PERIOD_MS);
-        if (status == ESP_ERR_TIMEOUT) {
-          continue;
-        }
+  static void MessageWatcher(void* args) {
+    static const char* TAG = "MessageWatcher#CANDriver";
+    auto& self = *static_cast<CANDriver*>(args);
 
-        if (status != ESP_OK) {
-          ESP_LOGE(TAG, "Failed to receive TWAI message: %s",
-                   esp_err_to_name(status));
-          continue;
-        }
+    while (1) {
+      twai_message_t msg;
+      auto status =
+          twai_receive_v2(self.twai_driver_, &msg, 1000 / portTICK_PERIOD_MS);
+      if (status == ESP_ERR_TIMEOUT) {
+        continue;
+      }
 
-        if (self.bus_locked) {
-          self.bus_locked = false;
-          ESP_LOGI(TAG, "Bus established!");
-          ESP_LOGI(TAG, "  - Message: 0x%08lx", msg.identifier);
-          ESP_LOGI(TAG, "  - DLC: %d", msg.data_length_code);
-          ESP_LOGI(TAG, "  - Data: %02x %02x %02x %02x %02x %02x %02x %02x",
-                   msg.data[0], msg.data[1], msg.data[2], msg.data[3],
-                   msg.data[4], msg.data[5], msg.data[6], msg.data[7]);
-        }
+      if (status != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to receive TWAI message: %s",
+                 esp_err_to_name(status));
+        continue;
+      }
 
-        std::vector<uint8_t> data(msg.data_length_code);
-        std::copy(msg.data, msg.data + msg.data_length_code, data.begin());
+      if (self.bus_locked) {
+        self.bus_locked = false;
+        ESP_LOGI(TAG, "Bus established!");
+        ESP_LOGI(TAG, "  - Message: 0x%08lx", msg.identifier);
+        ESP_LOGI(TAG, "  - DLC: %d", msg.data_length_code);
+        ESP_LOGI(TAG, "  - Data: %02x %02x %02x %02x %02x %02x %02x %02x",
+                 msg.data[0], msg.data[1], msg.data[2], msg.data[3],
+                 msg.data[4], msg.data[5], msg.data[6], msg.data[7]);
+      }
 
-        for (auto& cb : self.callbacks_[msg.identifier]) {
-          cb(msg.identifier, data);
-        }
+      std::vector<uint8_t> data(msg.data_length_code);
+      std::copy(msg.data, msg.data + msg.data_length_code, data.begin());
 
-        for (auto& cb : self.rx_callbacks_) {
-          cb(msg.identifier, data);
-        }
+      for (auto& cb : self.callbacks_[msg.identifier]) {
+        cb(msg.identifier, data);
+      }
+
+      for (auto& cb : self.rx_callbacks_) {
+        cb(msg.identifier, data);
       }
     }
   }
@@ -104,11 +112,13 @@ class CANDriver {
     auto self = static_cast<CANDriver*>(args);
 
     while (1) {
-      if (!self->bus_locked && self->tx_buffer_dep_.size() > 0) {
-        for (auto& [id, data] : self->tx_buffer_dep_) {
+      if (!self->bus_locked && self->tx_queue_.size() > 0) {
+        while (!self->tx_queue_.empty()) {
+          auto [id, data] = self->tx_queue_.front();
           self->DoSendStd(id, data);
+
+          self->tx_queue_.pop();
         }
-        self->tx_buffer_dep_.clear();
       } else {
         vTaskDelay(pdMS_TO_TICKS(10));
       }
@@ -171,9 +181,7 @@ class CANDriver {
   }
 
  public:
-  CANDriver() : twai_driver_(nullptr), callbacks_(), bus_locked(false) {
-    tx_buffer_dep_.reserve(50);
-  }
+  CANDriver() : twai_driver_(nullptr), callbacks_(), bus_locked(false) {}
 
   void Init(gpio_num_t tx, gpio_num_t rx) {
     static const char* TAG = "Init#CANDriver";
@@ -184,9 +192,8 @@ class CANDriver {
 
     general_config.rx_queue_len = 50;
     general_config.tx_queue_len = 50;
-    general_config.alerts_enabled = TWAI_ALERT_RX_DATA | TWAI_ALERT_TX_FAILED |
-                                    TWAI_ALERT_BUS_RECOVERED |
-                                    TWAI_ALERT_BUS_OFF;
+    general_config.alerts_enabled =
+        TWAI_ALERT_TX_FAILED | TWAI_ALERT_BUS_RECOVERED | TWAI_ALERT_BUS_OFF;
 
     auto status = twai_driver_install_v2(&general_config, &timing_config,
                                          &filter_config, &twai_driver_);
@@ -217,20 +224,18 @@ class CANDriver {
     xTaskCreate(CANDriver::BitSampleThread, "BitSampleThread#CAN", 4096, this,
                 1, NULL);
 
+    xTaskCreate(CANDriver::MessageWatcher, "MessageWatcher#CAN", 4096, this, 1,
+                NULL);
+
     xTaskCreate(CANDriver::TxBufferSender, "TxBufferSender#CAN", 4096, this, 1,
                 NULL);
   }
 
   void SendStd(uint32_t id, std::vector<uint8_t> const& data) {
     if (bus_locked) {
+      ESP_LOGW("SendStd#CANDriver", "Bus is locked, droped data");
       return;
     }
-
-    /* if (tx_buffer_dep_.size() > 50) {
-      ESP_LOGW("CANDriver", "Tx buffer is full, dropping message");
-      return;
-    }
-    this->tx_buffer_dep_.emplace_back(id, data); */
     DoSendStd(id, data);
   }
 
@@ -245,4 +250,6 @@ class CANDriver {
   void OnTx(Callback cb) { tx_callbacks_.emplace_back(cb); }
 
   float GetBusLoad() { return bus_load_; }
+
+  bool IsBusLocked() { return bus_locked; }
 };
