@@ -47,6 +47,7 @@ graph RL;
 
 ## 終わったら書く esa
 
+- 疑似アブソリュートエンコーダー
 - ステア
 - スマホ操作
 - Makefile
@@ -57,6 +58,7 @@ graph RL;
 - [ ] (はやめにやる 3) ノード可視化
 - [ ] (いつかやる) ControllerBase<void> をかけるように Action の実装が汚い
 - [ ] (いつかやる) エンコーダーのノードを作成 --> 頑張る
+- [ ] (いつかやる) SerialProxy を UDP で流す
 - [ ] (いつかやる) Pipe を実装 <== Link#Node 使いづらい
 - [ ] (いつかやる) Node の状態等をクライアント上で見れるようにする
 - [ ] (いつかやる) libstm-ota の src/init/init_wifi.cpp で認証モードを考慮した設定をする

@@ -1,16 +1,10 @@
 {
-  "sonarlint.pathToCompileCommands": "${workspaceFolder}/esp32/build/compile_commands.json",
-  "files.associations": {
-    "*.meson": "meson",
-    "idf_py_stdout_output_8711": "log",
-    "array": "cpp",
-    "string": "cpp",
-    "string_view": "cpp",
-    "span": "cpp",
-    "*.tcc": "cpp",
-    "chrono": "cpp",
-    "random": "cpp",
-    "cstdint": "cpp"
+  "saveAndRun": {
+    "commands": [
+      {
+        "cmd": "make -j 8 -f Makefile.test.mk all"
+      }
+    ]
   },
   "python.analysis.typeCheckingMode": "basic",
   "python.analysis.autoImportCompletions": true
