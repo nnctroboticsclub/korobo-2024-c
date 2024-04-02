@@ -9,11 +9,15 @@ namespace pseudo {
 enum osPriority { osPriorityNormal };
 
 class Thread {
+  std::thread thread_;
+
  public:
   Thread(osPriority priority = osPriorityNormal, int stack_size = 1024 * 4);
 
   template <typename F>
-  void start(F&& f) {}
+  void start(F&& f) {
+    thread_ = std::thread([f]() { f(); });
+  }
 };
 
 class ThisThread {

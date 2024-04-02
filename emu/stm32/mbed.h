@@ -9,7 +9,6 @@
 #include <functional>
 
 #include "rtos.h"
-#include "../simulation.hpp"
 #include "PinName.h"
 
 #define ENABLE true
@@ -57,6 +56,8 @@ class Callback : std::function<F> {
   template <typename C, typename R, typename... Args>
   Callback(C* c, R (C::*m)(Args...))
       : std::function<F>([c, m](Args... args) { (c->*m)(args...); }) {}
+
+  using std::function<F>::operator();
 };
 
 template <typename C, typename R, typename... Args>
@@ -113,6 +114,9 @@ struct CANMessage {
 };
 
 class CAN {
+  static int last_tracking_id;
+  int tracking_id_;
+
  protected:
   hal::can_t _can;
 
@@ -134,6 +138,9 @@ class CAN {
 };
 
 class I2C {
+  static int last_tracking_id;
+  int tracking_id_;
+
  public:
   I2C(PinName sda, PinName scl);
   void write(int address, const char* data, int length, bool repeated = false);
@@ -143,6 +150,9 @@ class I2C {
 };
 
 class SPI {
+  static int last_tracking_id;
+  int tracking_id_;
+
  public:
   SPI(PinName mosi, PinName miso, PinName sclk);
   void frequency(int hz);
@@ -178,8 +188,15 @@ class Timer {
  public:
   Timer();
   void start();
+  void reset();
+  std::chrono::microseconds elapsed_time();
+  int read_ms();
 };
 class PwmOut {
+  PinName pin_;
+  int period_;
+  int pulsewidth_;
+
  public:
   PwmOut(PinName pin);
   void period_us(int period);
@@ -187,7 +204,8 @@ class PwmOut {
 };
 
 class DigitalOut {
-  bool value;
+  bool value_;
+  PinName pin_;
 
  public:
   DigitalOut(PinName pin);
