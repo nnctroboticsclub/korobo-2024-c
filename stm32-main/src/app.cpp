@@ -93,16 +93,6 @@ void App::NeoPixelThread() {
 
   while (1) {
     led.Write();
-
-    // auto tick = 20 - 1 * i / 40.0f;
-    // int tick_int = tick < 0 ? 0 : (int)tick;
-
-    // ThisThread::sleep_for(tick_int * 1ms);
-    // i++;
-
-    // for (int k = 0; k < 19; k++) {
-    //   buf[k] = (buf[k] * 39 + buf[k + 1]) / 40;
-    // }
   }
 }
 

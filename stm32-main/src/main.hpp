@@ -1,6 +1,7 @@
+#include <cinttypes>
 #include <mbed.h>
 
-#include "../identify.h"
+#include "identify.h"
 #include "app.hpp"
 
 #include "neopixel.hpp"
@@ -307,7 +308,7 @@ int main_switch() {
   printf("  - Build date: %s\n", __DATE__);
   printf("  - Build time: %s\n", __TIME__);
   printf("  - Analytics:\n");
-  printf("    - sizeof(App): %d\n", sizeof(App));
+  printf("    - sizeof(App): %" PRIuPTR "\n", sizeof(App));
 
   // main_mi();
   // main_3();
