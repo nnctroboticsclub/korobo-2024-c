@@ -48,9 +48,15 @@ class KoroboCANDriver {
 
   void SendControl(std::vector<uint8_t> const& data) { SendStd(0x40, data); }
 
-  void Ping() { SendStd(0x80, {}); }
+  void Ping() {
+    if (can_.IsBusLocked()) return;
+    SendStd(0x80, {});
+  }
 
-  void KeepAlive() { SendStd(0xfc, {}); }
+  void KeepAlive() {
+    if (can_.IsBusLocked()) return;
+    SendStd(0xfc, {});
+  }
 
   void OnPong(PongListener cb) { pong_listeners_.emplace_back(cb); }
 };
