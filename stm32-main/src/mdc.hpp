@@ -5,7 +5,7 @@
 
 #include <robotics/assembly/ikakoMDC.hpp>
 
-#include <dcan.hpp>
+#include <robotics/network/dcan.hpp>
 
 class MDC {
   ::ikakoMDC motors_[4];

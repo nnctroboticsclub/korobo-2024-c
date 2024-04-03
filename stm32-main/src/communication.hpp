@@ -1,6 +1,6 @@
 #pragma once
 
-#include <dcan.hpp>
+#include <robotics/network/dcan.hpp>
 #include <robotics/sensor/gyro/bno055.hpp>
 #include <robotics/node/BLDC.hpp>
 

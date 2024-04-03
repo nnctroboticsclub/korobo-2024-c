@@ -22,18 +22,6 @@ void SimpleCAN::ThreadMain() {
   }
 }
 
-inline int SimpleCAN::Send(uint32_t id, std::vector<uint8_t> const &data) {
-  for (auto const &cb : tx_callbacks_) {
-    cb(id, data);
-  }
-
-  CANMessage msg;
-  msg.id = id;
-  msg.len = data.size();
-  std::copy(data.begin(), data.end(), msg.data);
-  return can_.write(msg);
-}
-
 SimpleCAN::SimpleCAN(PinName rx, PinName tx, int freqency)
     : can_(rx, tx, freqency), freqency_(freqency) {}
 

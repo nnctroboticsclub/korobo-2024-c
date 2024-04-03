@@ -2,7 +2,7 @@
 
 #include <robotics/component/swerve/swerve.hpp>
 #include <robotics/controller/swerve.hpp>
-#include <dcan.hpp>
+#include <robotics/network/dcan.hpp>
 
 struct SwerveComponent {
   robotics::component::Swerve swerve_;

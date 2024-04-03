@@ -31,7 +31,17 @@ class SimpleCAN {
 
  public:
   // 1 -> success
-  inline int Send(uint32_t id, std::vector<uint8_t> const &data);
+  inline int Send(uint32_t id, std::vector<uint8_t> const &data) {
+    for (auto const &cb : tx_callbacks_) {
+      cb(id, data);
+    }
+
+    CANMessage msg;
+    msg.id = id;
+    msg.len = data.size();
+    std::copy(data.begin(), data.end(), msg.data);
+    return can_.write(msg);
+  }
 
   SimpleCAN(PinName rx, PinName tx, int freqency = 50E3);
 

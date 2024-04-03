@@ -2,7 +2,7 @@
 
 #include <ikarashiCAN_mk2.h>
 #include <robotics/assembly/motor_pair.hpp>
-#include <dcan.hpp>
+#include <robotics/network/dcan.hpp>
 
 #include "../mdc.hpp"
 
