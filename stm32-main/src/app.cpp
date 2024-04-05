@@ -1,12 +1,5 @@
 #include "app.hpp"
 
-void App::UpdateEMC() {
-  auto emc_flag = (emc_ctrl && emc_keep_alive) ? true : false;
-  printf("EMC --> %s\n", emc_flag ? "True" : "False");
-  // emc = emc_ctrl;
-  emc = emc_flag;
-}
-
 void App::DoReport() {
   swerve_->ReportTo(com_->can_);
   com_->Report();
@@ -99,7 +92,8 @@ void App::NeoPixelThread() {
 App::App(Config &config)
     : config_(config),
       com_(std::make_unique<Communication>(config.com)),
-      emc(PC_1),
+      emc(std::make_shared<robotics::utils::EMC>()),
+      emc_out(PC_1),
       swerve_(std::make_unique<SwerveComponent>(config.swerve_config,
                                                 com_->controller_status_.swerve,
                                                 com_->value_store_.swerve)),
@@ -119,19 +113,22 @@ App::App(Config &config)
   com_->controller_status_.steer_2_inverse.OnFire(
       [this]() { swerve_->InverseSteerMotor(2); });
 
-  com_->controller_status_.soft_emc.SetChangeCallback([this](bool emc) {
-    printf("EMC setted to %d\n", emc);
-    this->emc_ctrl = !emc;
-    this->UpdateEMC();
-  });
+  auto emc_ctrl = emc->AddNode();
 
-  this->com_->can_.OnKeepAliveLost([this]() {
-    this->emc_keep_alive = 0;
-    this->UpdateEMC();
+  com_->controller_status_.soft_emc.SetChangeCallback(
+      [this, emc_ctrl](bool emc) {
+        printf("EMC(CTRL) setted to %d\n", emc);
+        emc_ctrl->SetValue(!emc);
+      });
+
+  auto keep_alive = emc->AddNode();
+  this->com_->can_.OnKeepAliveLost([keep_alive]() {
+    printf("EMC(CAN) setted to %d\n", false);
+    keep_alive->SetValue(false);
   });
-  this->com_->can_.OnKeepAliveRecovered([this]() {
-    this->emc_keep_alive = 1;
-    this->UpdateEMC();
+  this->com_->can_.OnKeepAliveRecovered([keep_alive]() {
+    printf("EMC(CAN) setted to %d\n", true);
+    keep_alive->SetValue(true);
   });
 }
 
@@ -193,7 +190,10 @@ void App::Init() {
   thr3 = new Thread(osPriorityNormal, 1024 * 4);
   thr3->start(callback(this, &App::ReportThread));
 
-  emc = 1;
+  emc->output.Link(emc_out);
+
+  emc->Init();
+
   com_->Init();
   if (config_.can1_debug) com_->AddCAN1Debug();
   if (config_.swerve_origin_setting) InitSwerveOrigin();

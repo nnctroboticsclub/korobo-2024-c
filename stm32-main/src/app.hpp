@@ -4,6 +4,9 @@
 
 #include <mbed.h>
 
+#include <robotics/utils/emc.hpp>
+#include <robotics/node/digital_out.hpp>
+
 #include "communication.hpp"
 #include "components/upper.hpp"
 #include "components/swerve.hpp"
@@ -29,9 +32,8 @@ class App {
   std::unique_ptr<Communication> com_;
 
   //* Robotics components
-  bool emc_ctrl;
-  bool emc_keep_alive;
-  mbed::DigitalOut emc;
+  std::shared_ptr<robotics::utils::EMC> emc;
+  robotics::node::DigitalOut emc_out;
 
   //* Components
   std::unique_ptr<SwerveComponent> swerve_;
@@ -45,8 +47,6 @@ class App {
   std::atomic<bool> prevent_swerve_update;
 
   NeoPixel led_strip{PB_2, 20};
-
-  void UpdateEMC();
 
   void DoReport();
 
