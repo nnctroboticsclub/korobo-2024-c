@@ -10,7 +10,7 @@
                 "${workspaceFolder}/ikarashiCAN_mk2",
                 "${workspaceFolder}/ikakoMDC/lpf",
                 "${workspaceFolder}/ikakoMDC/PID",
-                "${workspaceFolder}/NeoStrip",
+                "${workspaceFolder}/ikako_c620",
                 "${workspaceFolder}/mbed-os/targets/TARGET_STM/TARGET_STM32F7/TARGET_STM32F767xI/TARGET_NUCLEO_F767ZI"
             ],
             "defines": [
@@ -19,7 +19,8 @@
                 "DEVICE_SPI",
                 "DEVICE_PWMOUT",
                 "DEVICE_SERIAL",
-                "MBED_CONF_RTOS_PRESENT"
+                "MBED_CONF_RTOS_PRESENT",
+                "__MBED__"
             ],
             "forcedInclude": [
                 "${workspaceFolder}/BUILD/NUCLEO_F446RE/GCC_ARM/mbed_config.h",
