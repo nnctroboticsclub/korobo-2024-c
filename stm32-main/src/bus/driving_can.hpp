@@ -4,16 +4,16 @@
 #include <robotics/assembly/motor_pair.hpp>
 #include <robotics/network/dcan.hpp>
 
-#include "../mdc.hpp"
+#include <robotics/registry/ikako_mdc.hpp>
 
 class DrivingCANBus {
   ikarashiCAN_mk2 *ican_;
   int report_counter = 0;
 
  public:
-  MDC mdc0_;
-  MDC mdc1_;
-  MDC mdc2_;
+  robotics::registry::ikakoMDC mdc0_;
+  robotics::registry::ikakoMDC mdc1_;
+  robotics::registry::ikakoMDC mdc2_;
 
   DrivingCANBus(ikarashiCAN_mk2 *ican);
 
