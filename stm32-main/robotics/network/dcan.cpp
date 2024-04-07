@@ -1,41 +1,5 @@
 #include "dcan.hpp"
 
-void SimpleCAN::ThreadMain() {
-  CANMessage msg;
-  while (1) {
-    if (can_.rderror() || can_.tderror()) {
-      can_.reset();
-      ThisThread::sleep_for(10ms);
-    }
-
-    if (can_.read(msg)) {
-      for (auto const &cb : rx_callbacks_) {
-        cb(msg.id, std::vector<uint8_t>(msg.data, msg.data + msg.len));
-      }
-    }
-
-    if (!this->idle_callbacks_.empty()) {
-      for (auto cb : this->idle_callbacks_) {
-        cb();
-      }
-    }
-  }
-}
-
-SimpleCAN::SimpleCAN(PinName rx, PinName tx, int freqency)
-    : can_(rx, tx, freqency), freqency_(freqency) {}
-
-void SimpleCAN::Init() {
-  thread_ = new Thread(osPriorityNormal, 1024 * 4);
-  thread_->start(callback(this, &SimpleCAN::ThreadMain));
-}
-
-void SimpleCAN::OnRx(RxCallback cb) { rx_callbacks_.emplace_back(cb); }
-
-void SimpleCAN::OnTx(TxCallback cb) { tx_callbacks_.emplace_back(cb); }
-
-void SimpleCAN::OnIdle(IdleCallback cb) { idle_callbacks_.emplace_back(cb); }
-
 inline void DistributedCAN::HandleMessage(uint32_t id,
                                           std::vector<uint8_t> const &data) {
   for (auto const &cb : callbacks_) {
@@ -57,9 +21,10 @@ void DistributedCAN::Init() {
   });
 
   //* Ping
-  OnEvent(0x80, [this](std::vector<uint8_t>) { can_.Send(0x81 + can_id, {}); });
+  OnMessage(0x80,
+            [this](std::vector<uint8_t>) { can_.Send(0x81 + can_id, {}); });
 
-  OnEvent(0xfc, [this](std::vector<uint8_t>) {
+  OnMessage(0xfc, [this](std::vector<uint8_t>) {
     // printf("Keepalive!\n");
     keep_alive_timer.reset();
   });
@@ -83,8 +48,8 @@ void DistributedCAN::Init() {
   SetStatus(Statuses::kCANReady);
 }
 
-void DistributedCAN::OnEvent(uint8_t element_id,
-                             std::function<void(std::vector<uint8_t>)> cb) {
+void DistributedCAN::OnMessage(uint8_t element_id,
+                               std::function<void(std::vector<uint8_t>)> cb) {
   callbacks_.emplace_back(EventCallback{element_id, cb});
 }
 
