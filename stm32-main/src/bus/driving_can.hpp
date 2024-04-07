@@ -21,7 +21,7 @@ class DrivingCANBus {
   void Tick();
   void Send();
 
-  void ReportTo(DistributedCAN &can);
+  void ReportTo(robotics::network::DistributedCAN &can);
 
   robotics::assembly::MotorPair<float> &GetSwerveRot0();
   robotics::assembly::MotorPair<float> &GetSwerveRot1();

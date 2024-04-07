@@ -14,16 +14,16 @@ struct SwerveComponent {
 
   void Link_();
 
-  void ReportMotor(DistributedCAN &can, int index);
+  void ReportMotor(robotics::network::DistributedCAN &can, int index);
 
-  void ReportSwerve(DistributedCAN &can);
+  void ReportSwerve(robotics::network::DistributedCAN &can);
 
  public:
   SwerveComponent(robotics::component::Swerve::Config swerve_config,
                   controller::swerve::SwerveController &b,
                   controller::swerve::SwerveValueStore<float> &c);
 
-  void ReportTo(DistributedCAN &can);
+  void ReportTo(robotics::network::DistributedCAN &can);
 
   void InverseSteerMotor(int index);
 

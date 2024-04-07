@@ -1,5 +1,6 @@
 #include "simple_can.hpp"
 
+namespace robotics::network {
 void SimpleCAN::ThreadMain() {
   CANMessage msg;
   while (1) {
@@ -35,3 +36,4 @@ void SimpleCAN::OnRx(RxCallback cb) { rx_callbacks_.emplace_back(cb); }
 void SimpleCAN::OnTx(TxCallback cb) { tx_callbacks_.emplace_back(cb); }
 
 void SimpleCAN::OnIdle(IdleCallback cb) { idle_callbacks_.emplace_back(cb); }
+}  // namespace robotics::network

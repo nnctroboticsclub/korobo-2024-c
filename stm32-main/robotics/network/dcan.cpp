@@ -1,5 +1,10 @@
 #include "dcan.hpp"
 
+#include <chrono>
+
+using namespace std::chrono_literals;
+
+namespace robotics::network {
 inline void DistributedCAN::HandleMessage(uint32_t id,
                                           std::vector<uint8_t> const &data) {
   for (auto const &cb : callbacks_) {
@@ -9,34 +14,34 @@ inline void DistributedCAN::HandleMessage(uint32_t id,
   }
 }
 
-DistributedCAN::DistributedCAN(int can_id, PinName rx, PinName tx, int freqency)
-    : can_id(can_id), can_(rx, tx, freqency) {
-  keep_alive_timer.start();
+DistributedCAN::DistributedCAN(int can_id, std::shared_ptr<CANBase> can)
+    : can_id(can_id), can_(can) {
+  keep_alive_timer.Start();
 }
 
 void DistributedCAN::Init() {
-  can_.Init();
-  can_.OnRx([this](uint32_t id, std::vector<uint8_t> const &data) {
+  can_->Init();
+  can_->OnRx([this](uint32_t id, std::vector<uint8_t> const &data) {
     this->HandleMessage(id, data);
   });
 
   //* Ping
   OnMessage(0x80,
-            [this](std::vector<uint8_t>) { can_.Send(0x81 + can_id, {}); });
+            [this](std::vector<uint8_t>) { can_->Send(0x81 + can_id, {}); });
 
   OnMessage(0xfc, [this](std::vector<uint8_t>) {
     // printf("Keepalive!\n");
-    keep_alive_timer.reset();
+    keep_alive_timer.Reset();
   });
-  can_.OnIdle([this]() {
-    auto timer = keep_alive_timer.read_ms();
-    if (keep_alive_available && 300 < timer) {
+  can_->OnIdle([this]() {
+    auto timer = keep_alive_timer.ElapsedTime();
+    if (keep_alive_available && 300ms < timer) {
       printf("Keepalive Lost!\n");
       keep_alive_available = false;
       for (auto &&cb : this->keep_alive_lost_callbacks_) {
         cb();
       }
-    } else if (!keep_alive_available && timer < 300) {
+    } else if (!keep_alive_available && timer < 300ms) {
       printf("Keepalive Get!\n");
       keep_alive_available = true;
       for (auto &&cb : this->keep_alive_recovered_callbacks_) {
@@ -53,9 +58,9 @@ void DistributedCAN::OnMessage(uint8_t element_id,
   callbacks_.emplace_back(EventCallback{element_id, cb});
 }
 
-void DistributedCAN::OnRx(SimpleCAN::RxCallback cb) { can_.OnRx(cb); }
-void DistributedCAN::OnTx(SimpleCAN::TxCallback cb) { can_.OnTx(cb); }
-void DistributedCAN::OnIdle(SimpleCAN::IdleCallback cb) { can_.OnIdle(cb); }
+void DistributedCAN::OnRx(CANBase::RxCallback cb) { can_->OnRx(cb); }
+void DistributedCAN::OnTx(CANBase::TxCallback cb) { can_->OnTx(cb); }
+void DistributedCAN::OnIdle(CANBase::IdleCallback cb) { can_->OnIdle(cb); }
 void DistributedCAN::OnKeepAliveLost(KeepAliveLostCallback cb) {
   this->keep_alive_lost_callbacks_.emplace_back(cb);
 }
@@ -64,7 +69,7 @@ void DistributedCAN::OnKeepAliveRecovered(KeepAliveRecoverdCallback cb) {
 }
 
 int DistributedCAN::Send(uint8_t element_id, std::vector<uint8_t> const &data) {
-  return can_.Send(element_id, data);
+  return can_->Send(element_id, data);
 }
 
 void DistributedCAN::SetStatus(Statuses status) {
@@ -74,5 +79,7 @@ void DistributedCAN::SetStatus(Statuses status) {
   payload[2] = (can_id >> 0x00) & 0xff;
   payload[3] = static_cast<uint8_t>(status);
 
-  can_.Send(0xa0, payload);
+  can_->Send(0xa0, payload);
 }
+
+}  // namespace robotics::network

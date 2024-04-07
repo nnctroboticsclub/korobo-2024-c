@@ -26,7 +26,8 @@ void SwerveComponent::Link_() {
   values_.motor_2_encoder.Link(swerve_.motors[2]->steer_.feedback);
 }
 
-void SwerveComponent::ReportMotor(DistributedCAN &can, int index) {
+void SwerveComponent::ReportMotor(robotics::network::DistributedCAN &can,
+                                  int index) {
   std::vector<uint8_t> report(7);
   report.reserve(7);
   report[0] = 0x20 | index;
@@ -57,7 +58,7 @@ void SwerveComponent::ReportMotor(DistributedCAN &can, int index) {
   }
 }
 
-void SwerveComponent::ReportSwerve(DistributedCAN &can) {
+void SwerveComponent::ReportSwerve(robotics::network::DistributedCAN &can) {
   std::vector<uint8_t> physical_report(8);
   physical_report.reserve(8);
   physical_report[0] = 0x00;
@@ -97,7 +98,7 @@ SwerveComponent::SwerveComponent(
   Link_();
 }
 
-void SwerveComponent::ReportTo(DistributedCAN &can) {
+void SwerveComponent::ReportTo(robotics::network::DistributedCAN &can) {
   switch (report_counter) {
     case 0:
       ReportSwerve(can);

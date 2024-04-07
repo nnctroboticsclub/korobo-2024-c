@@ -202,5 +202,5 @@ void App::Init() {
 
   printf("\e[1;32m+\e[m   \e[33m+\e[m\n");
 
-  com_->SetStatus(DistributedCAN::Statuses::kReady);
+  com_->SetStatus(robotics::network::DistributedCAN::Statuses::kReady);
 }

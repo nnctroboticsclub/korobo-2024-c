@@ -1,6 +1,7 @@
 #include "communication.hpp"
 
 #include <cmath>
+#include <robotics/network/simple_can.hpp>
 
 void Communication::InitCAN() {
   printf("\e[1;32m|\e[m \e[32m-\e[m Initializing CAN (Com)\n");
@@ -8,7 +9,7 @@ void Communication::InitCAN() {
   can_.Init();
   driving_->Init();
   printf("\e[1;32m|\e[m \e[32m|\e[m \e[33m-\e[m Adding Handlers\n");
-  can_.OnEvent(0x40, [this](std::vector<uint8_t> data) {  //
+  can_.OnMessage(0x40, [this](std::vector<uint8_t> data) {  //
     if (data.size() < 1) {
       printf("C< Invaid (0 bytes)\n");
       return;
@@ -20,13 +21,13 @@ void Communication::InitCAN() {
     // printf("C< %s(%d bytes)\n", ss.str().c_str(), data.size());
     controller_status_.Pass(data);
   });
-  can_.OnEvent(0x61, [this](std::vector<uint8_t> data) {  //
+  can_.OnMessage(0x61, [this](std::vector<uint8_t> data) {  //
     value_store_.Pass(data);
   });
 }
 
 void Communication::InitGyro() {
-  SetStatus(DistributedCAN::Statuses::kInitializingGyro);
+  SetStatus(robotics::network::DistributedCAN::Statuses::kInitializingGyro);
   printf("\e[1;32m|\e[m \e[32m-\e[m Initializing Gyro\n");
   auto gyro_init_status = gyro_.Init();
   if (!gyro_init_status) {
@@ -39,13 +40,13 @@ void Communication::InitGyro() {
 void Communication::InitBLDC() {
   printf("\e[1;32m|\e[m \e[32m-\e[m Initializing ESC\n");
   printf("\e[1;32m|\e[m \e[32m|\e[m \e[33m-\e[m Pulsing Max Pulsewidth\n");
-  SetStatus(DistributedCAN::Statuses::kInitializingESC0);
+  SetStatus(robotics::network::DistributedCAN::Statuses::kInitializingESC0);
   bldc[0].Init0();
   bldc[1].Init0();
   bldc[2].Init0();
   ThisThread::sleep_for(2s);
   printf("\e[1;32m|\e[m \e[32m|\e[m \e[33m-\e[m Pulsing Min Pulsewidth\n");
-  SetStatus(DistributedCAN::Statuses::kInitializingESC1);
+  SetStatus(robotics::network::DistributedCAN::Statuses::kInitializingESC1);
   bldc[0].Init1();
   bldc[1].Init1();
   bldc[2].Init1();
@@ -69,7 +70,9 @@ void Communication::ReportBLDC() {
 }
 
 Communication::Communication(Config &config)
-    : can_(config.can.id, config.can.rx, config.can.tx, config.can.freqency),
+    : can_(config.can.id,
+           std::make_shared<robotics::network::SimpleCAN>(
+               config.can.rx, config.can.tx, config.can.freqency)),
       driving_(std::make_unique<DrivingCANBus>(new ikarashiCAN_mk2(
           config.driving_can.rx, config.driving_can.tx, 0))),
       controller_status_(config.controller_ids),
@@ -101,7 +104,8 @@ void Communication::Init() {
   controller_status_.swerve.move.SetValue({0, 0});
 }
 
-void Communication::SetStatus(DistributedCAN::Statuses status) {
+void Communication::SetStatus(
+    robotics::network::DistributedCAN::Statuses status) {
   can_.SetStatus(status);
 }
 

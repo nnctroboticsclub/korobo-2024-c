@@ -1,13 +1,12 @@
-// #include "main.hpp"
+#include "main.hpp"
 
-#include <stdio.h>
+/* #include <stdio.h>
 
-#include <robotics/network/dcan.hpp>
+#include <robotics/network/dcan.hpp> */
 
 int main() {
-  // printf("Helloworld!!\n");
-  // main_switch();
-  SimpleCAN can(PB_8, PB_9, 1E6);
+  main_switch();
+  /* SimpleCAN can(PB_8, PB_9, 1E6);
 
   can.Init();
 
@@ -31,5 +30,7 @@ int main() {
                                        0x00});
   can.Send(0x1FF, std::vector<uint8_t>{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                                        0x00});
+
+  while (1) wait_us(1E6); */
   return 0;
 }

@@ -41,7 +41,7 @@ class Communication {
   };
 
  public:
-  DistributedCAN can_;
+  robotics::network::DistributedCAN can_;
   std::unique_ptr<DrivingCANBus> driving_;
 
   korobo2023c::Controller controller_status_;
@@ -63,7 +63,7 @@ class Communication {
 
   void SendNonReactiveValues();
   void Init();
-  void SetStatus(DistributedCAN::Statuses status);
+  void SetStatus(robotics::network::DistributedCAN::Statuses status);
   void LinkToSwerve(SwerveComponent &swerve);
   void LinkToUpper(korobo2023c::Upper &upper);
   void AddCAN1Debug();

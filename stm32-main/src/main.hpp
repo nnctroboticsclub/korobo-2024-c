@@ -5,6 +5,7 @@
 #include "app.hpp"
 
 #include "neopixel.hpp"
+#include <robotics/network/simple_can.hpp>
 
 int main_mi() {
   ikakoMDC mdc{1, -50, 50, 0.001, 0.0, 2.7, 0, 0.000015, 0.01};
@@ -167,7 +168,9 @@ int main_3() {
   return 0;
 }
 int main_can() {
-  auto *can = new DistributedCAN(1, PB_8, PB_9, 1000000);
+  auto simple_can =
+      std::make_shared<robotics::network::SimpleCAN>(PB_8, PB_9, 1000000);
+  auto can = std::make_shared<robotics::network::DistributedCAN>(1, simple_can);
   printf("Init!\n");
   can->Init();
   printf("Setting up handlers\n");

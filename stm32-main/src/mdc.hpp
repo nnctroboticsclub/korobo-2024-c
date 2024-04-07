@@ -15,16 +15,16 @@ class MDC {
 
   int report_counter = 0;
 
-  void ReportSpeed(DistributedCAN &can, uint8_t id);
+  void ReportSpeed(robotics::network::DistributedCAN &can, uint8_t id);
 
-  void ReportEncoder(DistributedCAN &can, uint8_t id);
+  void ReportEncoder(robotics::network::DistributedCAN &can, uint8_t id);
 
  public:
   MDC(ikarashiCAN_mk2 *can, int mdc_id);
 
   void Tick();
 
-  void ReportTo(DistributedCAN &can, uint8_t id);
+  void ReportTo(robotics::network::DistributedCAN &can, uint8_t id);
 
   int Send();
 

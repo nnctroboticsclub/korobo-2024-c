@@ -3,11 +3,14 @@
 #include <unordered_map>
 #include <functional>
 #include <vector>
-#include <sstream>
 #include <iomanip>
+#include <memory>
 
-#include "simple_can.hpp"
+#include "can_base.hpp"
 
+#include "../platform/timer.hpp"
+
+namespace robotics::network {
 class DistributedCAN {
  public:
   enum class Statuses : uint8_t {
@@ -28,9 +31,9 @@ class DistributedCAN {
 
  private:
   int can_id = 0x7;
-  SimpleCAN can_;
+  std::shared_ptr<CANBase> can_;
   int last_keep_alive = 0;
-  Timer keep_alive_timer;
+  robotics::system::Timer keep_alive_timer;
 
   std::vector<EventCallback> callbacks_;
 
@@ -38,22 +41,23 @@ class DistributedCAN {
   std::vector<KeepAliveLostCallback> keep_alive_lost_callbacks_;
   std::vector<KeepAliveRecoverdCallback> keep_alive_recovered_callbacks_;
 
-  inline void HandleMessage(uint32_t id, std::vector<uint8_t> const &data);
+  inline void HandleMessage(std::uint32_t id, std::vector<uint8_t> const &data);
 
  public:
-  DistributedCAN(int can_id, PinName rx, PinName tx, int freqency = 50E3);
+  DistributedCAN(int can_id, std::shared_ptr<CANBase> can);
 
   void Init();
 
   void OnMessage(uint8_t element_id,
                  std::function<void(std::vector<uint8_t>)> cb);
 
-  void OnRx(SimpleCAN::RxCallback cb);
-  void OnTx(SimpleCAN::TxCallback cb);
-  void OnIdle(SimpleCAN::IdleCallback cb);
+  void OnRx(CANBase::RxCallback cb);
+  void OnTx(CANBase::TxCallback cb);
+  void OnIdle(CANBase::IdleCallback cb);
   void OnKeepAliveLost(KeepAliveLostCallback cb);
   void OnKeepAliveRecovered(KeepAliveRecoverdCallback cb);
 
   int Send(uint8_t element_id, std::vector<uint8_t> const &data);
   void SetStatus(Statuses status);
 };
+}  // namespace robotics::network

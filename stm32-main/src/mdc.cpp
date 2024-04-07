@@ -2,7 +2,7 @@
 
 #include <algorithm>
 
-void MDC::ReportSpeed(DistributedCAN &can, uint8_t id) {
+void MDC::ReportSpeed(robotics::network::DistributedCAN &can, uint8_t id) {
   std::vector<uint8_t> report(5);
   report.reserve(5);
 
@@ -30,7 +30,7 @@ void MDC::ReportSpeed(DistributedCAN &can, uint8_t id) {
   }
 }
 
-void MDC::ReportEncoder(DistributedCAN &can, uint8_t id) {
+void MDC::ReportEncoder(robotics::network::DistributedCAN &can, uint8_t id) {
   std::vector<uint8_t> report(5);
   report.reserve(5);
 
@@ -71,7 +71,7 @@ void MDC::Tick() {
   }
 }
 
-void MDC::ReportTo(DistributedCAN &can, uint8_t id) {
+void MDC::ReportTo(robotics::network::DistributedCAN &can, uint8_t id) {
   switch (report_counter) {
     case 0:
       ReportSpeed(can, id);

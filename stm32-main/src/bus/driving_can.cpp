@@ -17,7 +17,7 @@ void DrivingCANBus::Send() {
   mdc2_.Send();
 }
 
-void DrivingCANBus::ReportTo(DistributedCAN &can) {
+void DrivingCANBus::ReportTo(robotics::network::DistributedCAN &can) {
   switch (report_counter) {
     case 0:
       mdc0_.ReportTo(can, 0);
