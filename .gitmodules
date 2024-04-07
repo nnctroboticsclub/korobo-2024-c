@@ -1,0 +1,9 @@
+[submodule "stm32-main/ikako_c620"]
+	path = stm32-main/ikako_c620
+	url = git@github.com:nnctroboticsclub/ikako_c620.git
+[submodule "stm32-main/button_state"]
+	path = stm32-main/button_state
+	url = git@github.com:nnctroboticsclub/button_state.git
+[submodule "stm32-main/syoch-robotics"]
+	path = stm32-main/syoch-robotics
+	url = git@github.com:nnctroboticsclub/syoch-robotics.git
