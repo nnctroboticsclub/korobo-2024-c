@@ -6,6 +6,7 @@
 
 #include <robotics/utils/emc.hpp>
 #include <robotics/node/digital_out.hpp>
+#include <robotics/utils/neopixel.hpp>
 
 #include "communication.hpp"
 #include "components/upper.hpp"
@@ -14,6 +15,8 @@
 #include "neopixel.hpp"
 
 class App {
+  class Impl;
+
  public:
   struct Config {
     Communication::Config com;
@@ -26,38 +29,10 @@ class App {
     bool can1_debug;
   };
 
- private:
- private:
-  Config config_;
-  std::unique_ptr<Communication> com_;
-
-  //* Robotics components
-  std::shared_ptr<robotics::utils::EMC> emc;
-  robotics::node::DigitalOut emc_out;
-
-  //* Components
-  std::unique_ptr<SwerveComponent> swerve_;
-  korobo2023c::Upper upper_;
-
-  //* Thread
-  Thread *thr1;  //* Main
-  Thread *thr2;  //* NeoPixel
-  Thread *thr3;  //* Report
-
-  std::atomic<bool> prevent_swerve_update;
-
-  NeoPixel led_strip{PB_2, 20};
-
-  void DoReport();
-
-  void MainThread();
-  void ReportThread();
-  void NeoPixelThread();
+  Impl* impl;
 
  public:
-  App(Config &config);
-
-  void InitSwerveOrigin();
+  App(Config& config);
 
   void Init();
 };
