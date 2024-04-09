@@ -20,7 +20,7 @@ int main_mi() {
 }
 
 int main_2() {
-  NeoPixel led(PB_2, 20);
+  robotics::utils::NeoPixel led(PB_2, 20);
 
   int i = 0;
 
@@ -100,15 +100,15 @@ int main_2() {
 }
 
 int main_3() {
-  NeoPixel led(PB_2, 20);
+  robotics::utils::NeoPixel led(PB_2, 20);
 
   int i = 0;
   int j = 0;
 
-  Color buf[] = {0x000000, 0x000000, 0x000000, 0x000000, 0x000000,
-                 0x000000, 0x000000, 0x000000, 0x000000, 0x000000,
-                 0x000000, 0x000000, 0x000000, 0x000000, 0x000000,
-                 0x000000, 0x000000, 0x000000, 0x000000, 0x004444};
+  robotics::utils::Color buf[] = {
+      0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000,
+      0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000,
+      0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x004444};
 
   while (1) {
     led.Clear();

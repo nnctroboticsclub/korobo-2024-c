@@ -10,7 +10,7 @@
 		}
 	},
 	"mounts": [
-		"source=/home/syoch093194/ghq/github.com/nnctroboticsclub/libstm-ota,target=/workspaces/libstm-ota,type=bind,consistency=cached"
+		"source=/home/syoch/ghq/github.com/nnctroboticsclub/libstm-ota,target=/workspaces/libstm-ota,type=bind,consistency=cached"
 	],
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
 	// "forwardPorts": [],

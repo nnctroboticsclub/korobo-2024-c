@@ -7,9 +7,11 @@
                 "${workspaceFolder}/bno055",
                 "${workspaceFolder}/mbed-os",
                 "${workspaceFolder}/ikakoMDC",
+                "${workspaceFolder}/syoch-robotics",
                 "${workspaceFolder}/ikarashiCAN_mk2",
                 "${workspaceFolder}/ikakoMDC/lpf",
                 "${workspaceFolder}/ikakoMDC/PID",
+                "${workspaceFolder}/button_state",
                 "${workspaceFolder}/ikako_c620",
                 "${workspaceFolder}/mbed-os/targets/TARGET_STM/TARGET_STM32F7/TARGET_STM32F767xI/TARGET_NUCLEO_F767ZI"
             ],

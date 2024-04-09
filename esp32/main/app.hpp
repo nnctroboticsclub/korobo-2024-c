@@ -111,7 +111,7 @@ class App {
                  .subnet = 0,
                  .gateway = 0,
              }},
-        .active_network_profile_id = 12,
+        .active_network_profile_id = 4,
         .primary_stm32_id = 2};
 
     return init_config;
@@ -157,6 +157,17 @@ class App {
       uint32_t msg_id = data[0];
       std::vector<uint8_t> payload(data.begin() + 1, data.end());
       this->SendCANtoRoboWs(msg_id, payload);
+    });
+
+    ESP_LOGI("Manager", "- Hello");
+    can_.OnRx([](uint32_t id, std::vector<uint8_t> const& data) {
+      ESP_LOGI("CAN <", "ID: %08lx", id);
+      ESP_LOG_BUFFER_HEXDUMP("CAN <", data.data(), data.size(), ESP_LOG_INFO);
+    });
+
+    can_.OnTx([](uint32_t id, std::vector<uint8_t> const& data) {
+      ESP_LOGI("CAN >", "ID: %08lx", id);
+      ESP_LOG_BUFFER_HEXDUMP("CAN >", data.data(), data.size(), ESP_LOG_INFO);
     });
 
     client.OnRecv([this](std::vector<uint8_t> const& data) {

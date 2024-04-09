@@ -4,9 +4,6 @@
 [submodule "stm32-main/button_state"]
 	path = stm32-main/button_state
 	url = git@github.com:nnctroboticsclub/button_state.git
-[submodule "stm32-main/syoch-robotics"]
-	path = stm32-main/syoch-robotics
-	url = git@github.com:nnctroboticsclub/syoch-robotics.git
 [submodule "syoch-robotics"]
 	path = syoch-robotics
 	url = git@github.com:nnctroboticsclub/syoch-robotics.git
