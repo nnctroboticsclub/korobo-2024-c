@@ -21,9 +21,10 @@ class App::Impl {
   std::unique_ptr<SwerveComponent> swerve_;
   korobo2023c::Upper upper_;
 
-  robotics::datalink::SPI neopixel_spi{PB_2, NC, NC, NC, (int)6.4E6};
+  robotics::datalink::SPI *neopixel_spi =
+      new robotics::datalink::SPI{PB_2, NC, NC, NC, (int)6.4E6};
   robotics::utils::NeoPixel led_strip{
-      std::shared_ptr<robotics::datalink::SPI>(&neopixel_spi), 20};
+      std::shared_ptr<robotics::datalink::SPI>(neopixel_spi), 20};
 
  public:
   Impl(App::Config &config)
