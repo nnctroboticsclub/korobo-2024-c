@@ -3,12 +3,12 @@
         {
             "name": "Nucleo F446RE",
             "includePath": [
-                "${workspaceFolder}/**",
+                "${workspaceFolder}/mbed-os/**",
                 "${workspaceFolder}/bno055",
-                "${workspaceFolder}/mbed-os",
                 "${workspaceFolder}/ikakoMDC",
                 "${workspaceFolder}/syoch-robotics",
                 "${workspaceFolder}/ikarashiCAN_mk2",
+                "${workspaceFolder}/ikarashiCAN_mk2/NoMutexCAN-master",
                 "${workspaceFolder}/ikakoMDC/lpf",
                 "${workspaceFolder}/ikakoMDC/PID",
                 "${workspaceFolder}/button_state",

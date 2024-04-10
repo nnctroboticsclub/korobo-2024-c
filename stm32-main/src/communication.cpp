@@ -79,9 +79,15 @@ Communication::Communication(Config &config)
       value_store_(config.value_store_ids),
       gyro_(config.i2c.sda, config.i2c.scl),
       bldc{
-          {config.swerve_esc_pins.swerve_pin_m0, 1000, 2000},
-          {config.swerve_esc_pins.swerve_pin_m1, 1000, 2000},
-          {config.swerve_esc_pins.swerve_pin_m2, 1000, 2000},
+          {std::make_shared<robotics::driver::PWM>(
+               config.swerve_esc_pins.swerve_pin_m0),
+           1000, 2000},
+          {std::make_shared<robotics::driver::PWM>(
+               config.swerve_esc_pins.swerve_pin_m1),
+           1000, 2000},
+          {std::make_shared<robotics::driver::PWM>(
+               config.swerve_esc_pins.swerve_pin_m2),
+           1000, 2000},
       } {}
 
 void Communication::SendNonReactiveValues() {

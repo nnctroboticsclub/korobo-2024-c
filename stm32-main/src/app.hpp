@@ -12,7 +12,7 @@
 #include "components/upper.hpp"
 #include "components/swerve.hpp"
 
-#include "neopixel.hpp"
+#include <robotics/utils/neopixel.hpp>
 
 class App {
   class Impl;

@@ -20,7 +20,10 @@ class App::Impl {
   //* Components
   std::unique_ptr<SwerveComponent> swerve_;
   korobo2023c::Upper upper_;
-  robotics::utils::NeoPixel led_strip{PB_2, 20};
+
+  robotics::datalink::SPI neopixel_spi{PB_2, NC, NC, NC, (int)6.4E6};
+  robotics::utils::NeoPixel led_strip{
+      std::shared_ptr<robotics::datalink::SPI>(&neopixel_spi), 20};
 
  public:
   Impl(App::Config &config)
@@ -124,33 +127,31 @@ class App::Impl {
   }
 
   void NeoPixelThread() {
-    robotics::utils::NeoPixel led(PB_2, 20);
+    led_strip.Clear();
 
-    led.Clear();
-
-    led.PutPixel(0, 0x00ff00);
-    led.PutPixel(1, 0x00ff00);
-    led.PutPixel(2, 0x00ff00);
-    led.PutPixel(3, 0x00ff00);
-    led.PutPixel(4, 0x00ff00);
-    led.PutPixel(5, 0x00ff00);
-    led.PutPixel(6, 0x00ff00);
-    led.PutPixel(7, 0x00ff00);
-    led.PutPixel(8, 0x00ff00);
-    led.PutPixel(9, 0x00ff00);
-    led.PutPixel(10, 0x00ff00);
-    led.PutPixel(11, 0x00ff00);
-    led.PutPixel(12, 0x00ff00);
-    led.PutPixel(13, 0x00ff00);
-    led.PutPixel(14, 0x00ff00);
-    led.PutPixel(15, 0x00ff00);
-    led.PutPixel(16, 0x00ff00);
-    led.PutPixel(17, 0x00ff00);
-    led.PutPixel(18, 0x00ff00);
-    led.PutPixel(19, 0x00ff00);
+    led_strip.PutPixel(0, 0x00ff00);
+    led_strip.PutPixel(1, 0x00ff00);
+    led_strip.PutPixel(2, 0x00ff00);
+    led_strip.PutPixel(3, 0x00ff00);
+    led_strip.PutPixel(4, 0x00ff00);
+    led_strip.PutPixel(5, 0x00ff00);
+    led_strip.PutPixel(6, 0x00ff00);
+    led_strip.PutPixel(7, 0x00ff00);
+    led_strip.PutPixel(8, 0x00ff00);
+    led_strip.PutPixel(9, 0x00ff00);
+    led_strip.PutPixel(10, 0x00ff00);
+    led_strip.PutPixel(11, 0x00ff00);
+    led_strip.PutPixel(12, 0x00ff00);
+    led_strip.PutPixel(13, 0x00ff00);
+    led_strip.PutPixel(14, 0x00ff00);
+    led_strip.PutPixel(15, 0x00ff00);
+    led_strip.PutPixel(16, 0x00ff00);
+    led_strip.PutPixel(17, 0x00ff00);
+    led_strip.PutPixel(18, 0x00ff00);
+    led_strip.PutPixel(19, 0x00ff00);
 
     while (1) {
-      led.Write();
+      led_strip.Write();
     }
   }
 

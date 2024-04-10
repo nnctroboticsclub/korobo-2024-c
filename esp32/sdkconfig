@@ -413,6 +413,12 @@ CONFIG_EXAMPLE_CONNECT_IPV6_PREF_LOCAL_LINK=y
 # end of Example Connection Configuration
 
 #
+# main
+#
+CONFIG_STM32_PROGRAM_START=0x08000000
+# end of main
+
+#
 # Logic Analyzer Configuration
 #
 CONFIG_ANALYZER_USE_I2S_CHANNEL_0=y
@@ -427,12 +433,6 @@ CONFIG_ANALYZER_WIFI_PASS="mypass"
 # CONFIG_ANALYZER_USE_SUMP is not set
 # CONFIG_ANALYZER_USE_PORT_ASSIGN is not set
 # end of Logic Analyzer Configuration
-
-#
-# main
-#
-CONFIG_STM32_PROGRAM_START=0x08000000
-# end of main
 
 #
 # Compiler options
@@ -1761,6 +1761,12 @@ CONFIG_WIFI_PROV_STA_ALL_CHANNEL_SCAN=y
 # end of Wi-Fi Provisioning Manager
 
 #
+# ESP WebSocket client
+#
+CONFIG_ESP_WS_CLIENT_ENABLE_DYNAMIC_BUFFER=y
+# end of ESP WebSocket client
+
+#
 # mDNS
 #
 CONFIG_MDNS_MAX_INTERFACES=3
@@ -1788,12 +1794,6 @@ CONFIG_MDNS_PREDEF_NETIF_AP=y
 CONFIG_MDNS_PREDEF_NETIF_ETH=y
 # end of MDNS Predefined interfaces
 # end of mDNS
-
-#
-# ESP WebSocket client
-#
-CONFIG_ESP_WS_CLIENT_ENABLE_DYNAMIC_BUFFER=y
-# end of ESP WebSocket client
 # end of Component config
 
 # CONFIG_IDF_EXPERIMENTAL_FEATURES is not set

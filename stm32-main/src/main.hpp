@@ -4,7 +4,7 @@
 #include "identify.h"
 #include "app.hpp"
 
-#include "neopixel.hpp"
+#include <robotics/utils/neopixel.hpp>
 #include <robotics/network/simple_can.hpp>
 
 int main_mi() {
@@ -20,7 +20,9 @@ int main_mi() {
 }
 
 int main_2() {
-  robotics::utils::NeoPixel led(PB_2, 20);
+  auto spi =
+      std::make_shared<robotics::datalink::SPI>(PB_2, NC, NC, NC, (int)6.4E6);
+  robotics::utils::NeoPixel led(spi, 20);
 
   int i = 0;
 
@@ -100,7 +102,9 @@ int main_2() {
 }
 
 int main_3() {
-  robotics::utils::NeoPixel led(PB_2, 20);
+  auto spi =
+      std::make_shared<robotics::datalink::SPI>(PB_2, NC, NC, NC, (int)6.4E6);
+  robotics::utils::NeoPixel led(spi, 20);
 
   int i = 0;
   int j = 0;
