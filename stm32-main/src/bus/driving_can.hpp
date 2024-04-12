@@ -4,7 +4,7 @@
 #include <robotics/assembly/motor_pair.hpp>
 #include <robotics/network/dcan.hpp>
 
-#include <robotics/registry/ikako_mdc.hpp>
+#include <mbed-robotics/ikako_mdc.hpp>
 
 class DrivingCANBus {
   ikarashiCAN_mk2 *ican_;

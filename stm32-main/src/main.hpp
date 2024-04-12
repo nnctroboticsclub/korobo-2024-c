@@ -5,7 +5,7 @@
 #include "app.hpp"
 
 #include <robotics/utils/neopixel.hpp>
-#include <robotics/network/simple_can.hpp>
+#include <mbed-robotics/simple_can.hpp>
 
 int main_mi() {
   ikakoMDC mdc{1, -50, 50, 0.001, 0.0, 2.7, 0, 0.000015, 0.01};

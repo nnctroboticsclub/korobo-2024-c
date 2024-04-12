@@ -1,7 +1,7 @@
 #include "communication.hpp"
 
 #include <cmath>
-#include <robotics/network/simple_can.hpp>
+#include <mbed-robotics/simple_can.hpp>
 
 void Communication::InitCAN() {
   printf("\e[1;32m|\e[m \e[32m-\e[m Initializing CAN (Com)\n");

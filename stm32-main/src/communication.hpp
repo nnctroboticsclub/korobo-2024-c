@@ -1,8 +1,8 @@
 #pragma once
 
 #include <robotics/network/dcan.hpp>
-#include <robotics/sensor/gyro/bno055.hpp>
 #include <robotics/node/BLDC.hpp>
+#include <mbed-robotics/bno055.hpp>
 
 #include "2023c.hpp"
 #include "bus/driving_can.hpp"
