@@ -6,17 +6,17 @@ dependencies:
       type: service
     version: 1.0.2-beta
   espressif/esp_websocket_client:
-    component_hash: d8ccaffac2871dc756bdc08d7ff0bfa2daa7db3d94b0c7bf714b1962efe5e7c9
+    component_hash: ae561d39222a399ddda5e470913c3d54a3c0f53dce15b8d21a3aaa4226dd74b1
     source:
       service_url: https://api.components.espressif.com/
       type: service
-    version: 1.2.2
+    version: 1.2.3
   espressif/mdns:
-    component_hash: d8ae7aa491ff97aea1d00d514a1de42cdbaaf1bce10df183968fa5594b904de7
+    component_hash: 9ff9c578fc3a5ea3c68e807233e47f2ce6b2492a92d7a9356ae5c29ab45f0fde
     source:
       service_url: https://api.components.espressif.com/
       type: service
-    version: 1.2.5
+    version: 1.3.0
   idf:
     component_hash: null
     source:
@@ -35,13 +35,6 @@ dependencies:
       path: .
       type: git
     version: 6442fc50226f2a96c994fa84cccf413be52a0f31
-  ok-home/logic-analyzer:
-    component_hash: 56fda909c4203b4651ee5eeb6170a1bf0adf45cb7e4f797ae4dd446f73c547bf
-    source:
-      git: git@github.com:ok-home/logic_analyzer.git
-      path: .
-      type: git
-    version: f05cf8c8043760830fe5faeb9e994e1e1b4379e2
-manifest_hash: 28290ec476e36d15ae85d95c8ff85d9a2ea500f6f8f58ee4fbcf06f7953ba4b7
-target: esp32
+manifest_hash: ff0d481690286f1cc84c8ef09892911ab97563f54e591c242bf80a2ff8c5b917
+target: esp32c3
 version: 1.0.0
