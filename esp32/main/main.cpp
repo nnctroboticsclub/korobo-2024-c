@@ -1,4 +1,4 @@
-// #include "app.hpp"
+#include "app.hpp"
 
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
@@ -7,65 +7,11 @@
 
 #include <cmath>
 
-class NeoPixel {
-  static constexpr int kResetSize = 48 * 2;
-  static std::vector<uint8_t> reset;
-  const size_t kLEDs;
-  std::vector<uint8_t> data;
-  std::shared_ptr<ISPI> spi_;
+#include <robotics/utils/neopixel.hpp>
 
-  void WriteByte(size_t index, uint8_t byte) {
-    int byte_index = kResetSize + 4 * index;
+#include <spi_host_cxx.hpp>
 
-    data[byte_index + 0] =
-        ((byte >> 7) & 1 ? 0xE : 0x8) << 4 | ((byte >> 6) & 1 ? 0xE : 0x8);
-    data[byte_index + 1] =
-        ((byte >> 5) & 1 ? 0xE : 0x8) << 4 | ((byte >> 4) & 1 ? 0xE : 0x8);
-    data[byte_index + 2] =
-        ((byte >> 3) & 1 ? 0xE : 0x8) << 4 | ((byte >> 2) & 1 ? 0xE : 0x8);
-    data[byte_index + 3] =
-        ((byte >> 1) & 1 ? 0xE : 0x8) << 4 | ((byte >> 0) & 1 ? 0xE : 0x8);
-  }
-
- public:
-  NeoPixel(std::shared_ptr<ISPI> spi, size_t kLEDs) : kLEDs(kLEDs), spi_(spi) {
-    data.resize(kResetSize + 4 * 3 * kLEDs);
-    for (size_t i = 0; i < data.size(); i++) {
-      data[i] = 0;
-    }
-  }
-
-  void PutPixel(size_t index, uint32_t rgb) {
-    uint8_t g = (rgb >> 16) & 0xFF;
-    uint8_t r = (rgb >> 8) & 0xFF;
-    uint8_t b = rgb & 0xFF;
-
-    WriteByte(index * 3 + 0, r);
-    WriteByte(index * 3 + 1, g);
-    WriteByte(index * 3 + 2, b);
-  }
-
-  void Clear() {
-    for (size_t i = 0; i < kLEDs; i++) {
-      PutPixel(i, 0);
-    }
-  }
-  void Write() {
-    std::vector<uint8_t> rx(data.size());
-    spi_->Transfer(data, rx);
-  }
-
-  void Debug() {
-    for (size_t i = 0; i < data.size(); i++) {
-      printf("%02x ", data[i]);
-      if (i % 12 == 11) putchar(' ');
-      if (i % 24 == 23) {
-        printf("\n");
-      }
-    }
-    printf("\n");
-  }
-};
+using Color = robotics::utils::Color;
 
 Color hsv2color(float h, float s, float v) {
   float c = v * s;
@@ -103,17 +49,17 @@ Color hsv2color(float h, float s, float v) {
 }
 
 extern "C" void app_main(void) {
-  /* App app;
+  App app;
   app.Init();
-  app.Main(); */
+  app.Main();
 
-  idf::SPIMaster spi_master{idf::SPINum(1), idf::MOSI(27), idf::MISO(19),
+  /* idf::SPIMaster spi_master{idf::SPINum(1), idf::MOSI(27), idf::MISO(19),
                             idf::SCLK(5)};
 
   auto dev = spi_master.create_dev(idf::CS(18), idf::Frequency(3.2E6));
 
-  auto spi = std::make_shared<ESP32SPI>(dev);
-  NeoPixel neopixel(spi, 7);
+  auto spi = std::make_shared<robotics::datalink::SPI>(dev);
+  robotics::utils::NeoPixel neopixel(spi, 7);
   neopixel.Clear();
 
   int i = 0;
@@ -129,5 +75,5 @@ extern "C" void app_main(void) {
 
     vTaskDelay(pdMS_TO_TICKS(10));
     i++;
-  }
+  } */
 }

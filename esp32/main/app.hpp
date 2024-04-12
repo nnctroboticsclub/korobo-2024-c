@@ -2,15 +2,20 @@
 
 #include <string>
 
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+
 #include <libstm-ota.hpp>
 #include <esp_log.h>
-#include <logic_analyzer_ws.h>
 
-#include "distributed_can.hpp"
+#include <robotics/network/dcan.hpp>
+#include <idf-robotics/can_driver.hpp>
 #include "robo_tcp_client.hpp"
 
 class App {
-  KoroboCANDriver can_;
+  static constexpr const char* TAG = "App";
+
+  robotics::network::DistributedCAN can_;
   std::string server_ip;
   RoboTCPClient client;
 
@@ -21,108 +26,104 @@ class App {
         .uarts = {InitConfig::Uart{
             .port = 1,
             .baud_rate = 9600,
-            .tx = 17,
-            .rx = 16,
+            .tx = 21,
+            .rx = 20,
             .parity = UART_PARITY_DISABLE,
         }},
         .spi_buses = {InitConfig::SPIBus{
-            .port = 2,
-            .miso = GPIO_NUM_19,
-            .mosi = GPIO_NUM_23,
-            .sclk = GPIO_NUM_18,
+            .port = 1,
+            .miso = GPIO_NUM_5,
+            .mosi = GPIO_NUM_6,
+            .sclk = GPIO_NUM_4,
         }},
         .stm32bls = {InitConfig::STM32BL{
             .id = 1,
-            .spi_port_id = 2,
-            .cs = GPIO_NUM_5,
+            .spi_port_id = 1,
+            .cs = GPIO_NUM_7,
         }},
         .stm32s = {InitConfig::STM32{
             .id = 2,
-            .reset = GPIO_NUM_22,
-            .boot0 = GPIO_NUM_21,
+            .reset = GPIO_NUM_0,
+            .boot0 = GPIO_NUM_1,
             .bl_id = 1,
         }},
         .serial_proxies = {InitConfig::SerialProxy{.id = 1, .uart_port_id = 1}},
-        .network_profiles =
-            {//
-             InitConfig::NetworkProfile{
-                 .id = 2,
-                 .is_ap = true,
-                 .is_static = true,
-                 .ssid = "ESP32",
-                 .password = "esp32-network",
-                 .hostname = "esp32",
-                 .ip = 0xc0a80001,
-                 .subnet = 0xffffff00,
-                 .gateway = 0xc0a80001,
-             },
-             InitConfig::NetworkProfile{
-                 .id = 3,
-                 .is_ap = false,
-                 .is_static = false,
-                 .ssid = "3-303-Abe 2.4Ghz",
-                 .password = "syochnetwork",
-                 .hostname = "esp32",
-                 .ip = 0,
-                 .subnet = 0,
-                 .gateway = 0,
-             },
-             InitConfig::NetworkProfile{
-                 .id = 4,
-                 .is_ap = false,
-                 .is_static = false,
-                 .ssid = "Robonnct-2G4",
-                 .password = "robonnct_wlan",
-                 .hostname = "esp32",
-                 .ip = 0,
-                 .subnet = 0,
-                 .gateway = 0,
-             },
-             InitConfig::NetworkProfile{
-                 .id = 10,
-                 .is_ap = false,
-                 .is_static = false,
-                 .ssid = "Pixel_4846",
-                 .password = "aaaabbbb",
-                 .hostname = "esp32",
-                 .ip = 0,
-                 .subnet = 0,
-                 .gateway = 0,
-             },
-             InitConfig::NetworkProfile{
-                 .id = 11,
-                 .is_ap = false,
-                 .is_static = false,
-                 .ssid = "KanatasiPhone",
-                 .password = "6cyZ-Kb9T-stcf-PqDV",
-                 .hostname = "esp32",
-                 .ip = 0,
-                 .subnet = 0,
-                 .gateway = 0,
-             },
-             InitConfig::NetworkProfile{
-                 .id = 12,
-                 .is_ap = false,
-                 .is_static = false,
-                 .ssid = "me34011v_0414",
-                 .password = "12345678",
-                 .hostname = "esp32",
-                 .ip = 0,
-                 .subnet = 0,
-                 .gateway = 0,
-             }},
-        .active_network_profile_id = 4,
+        .network_profiles = {InitConfig::NetworkProfile{
+                                 .id = 2,
+                                 .is_ap = true,
+                                 .is_static = true,
+                                 .ssid = "ESP32",
+                                 .password = "esp32-network",
+                                 .hostname = "esp32",
+                                 .ip = 0xc0a80001,
+                                 .subnet = 0xffffff00,
+                                 .gateway = 0xc0a80001,
+                             },
+                             InitConfig::NetworkProfile{
+                                 .id = 3,
+                                 .is_ap = false,
+                                 .is_static = false,
+                                 .ssid = "3-303-Abe 2.4Ghz",
+                                 .password = "syochnetwork",
+                                 .hostname = "esp32",
+                                 .ip = 0,
+                                 .subnet = 0,
+                                 .gateway = 0,
+                             },
+                             InitConfig::NetworkProfile{
+                                 .id = 4,
+                                 .is_ap = false,
+                                 .is_static = false,
+                                 .ssid = "Robonnct-2G4",
+                                 .password = "robonnct_wlan",
+                                 .hostname = "esp32",
+                                 .ip = 0,
+                                 .subnet = 0,
+                                 .gateway = 0,
+                             },
+                             InitConfig::NetworkProfile{
+                                 .id = 10,
+                                 .is_ap = false,
+                                 .is_static = false,
+                                 .ssid = "Pixel_4846",
+                                 .password = "aaaabbbb",
+                                 .hostname = "esp32",
+                                 .ip = 0,
+                                 .subnet = 0,
+                                 .gateway = 0,
+                             },
+                             InitConfig::NetworkProfile{
+                                 .id = 11,
+                                 .is_ap = false,
+                                 .is_static = false,
+                                 .ssid = "KanatasiPhone",
+                                 .password = "6cyZ-Kb9T-stcf-PqDV",
+                                 .hostname = "esp32",
+                                 .ip = 0,
+                                 .subnet = 0,
+                                 .gateway = 0,
+                             },
+                             InitConfig::NetworkProfile{
+                                 .id = 12,
+                                 .is_ap = false,
+                                 .is_static = false,
+                                 .ssid = "me34011v_0414",
+                                 .password = "12345678",
+                                 .hostname = "esp32",
+                                 .ip = 0,
+                                 .subnet = 0,
+                                 .gateway = 0,
+                             }},
+        .active_network_profile_id = 20,
         .primary_stm32_id = 2};
 
     return init_config;
   }
   stm32::ota::OTAServer StartOTAServer() {
     auto& init_config = this->GetInitConfig();
-    stm32::ota::OTAServer ota_server(idf::GPIONum(34), init_config);
+    stm32::ota::OTAServer ota_server(idf::GPIONum(2), init_config);
 
-    ota_server.OnHTTPDStart([this](httpd_handle_t server) {
-      logic_analyzer_register_uri_handlers(server);
-    });
+    ota_server.OnHTTPDStart([this](httpd_handle_t server) {});
 
     return ota_server;
   }
@@ -132,24 +133,24 @@ class App {
     payload.insert(payload.begin(), id);
 
     if (client.ConnectionEstablished()) {
-      /* ESP_LOG_BUFFER_HEXDUMP("WS -->", payload.data(), payload.size(),
-                             ESP_LOG_INFO); */
+      ESP_LOG_BUFFER_HEXDUMP("WS -->", payload.data(), payload.size(),
+                             ESP_LOG_INFO);
       client.Send(payload);
     }
   }
 
  public:
-  App() : can_() {}
+  App()
+      : can_(0, std::make_shared<robotics::network::CANDriver>(GPIO_NUM_15,
+                                                               GPIO_NUM_4)) {}
 
   void Init() {
     ESP_LOGI("Manager", "Init");
-    ESP_LOGI("Manager", "- CAN");
-    can_.Init(GPIO_NUM_15, GPIO_NUM_4);
-
+    can_.Init();
     can_.OnPong(
         [this](uint8_t device) { this->SendCANtoRoboWs(0xff, {device}); });
 
-    can_.OnMessage(0xa0, [this](uint32_t id, std::vector<uint8_t> const& data) {
+    can_.OnMessage(0xa0, [this](std::vector<uint8_t> const& data) {
       if (data.size() < 1) {
         ESP_LOGW("Manager", "CAN message 0xa0 has no payload.");
         return;
@@ -171,10 +172,12 @@ class App {
     });
 
     client.OnRecv([this](std::vector<uint8_t> const& data) {
-      /* ESP_LOG_BUFFER_HEXDUMP("WS <--", data.data(), data.size(),
-       * ESP_LOG_INFO); */
-      can_.SendControl(data);
+      if (0)
+        ESP_LOG_BUFFER_HEXDUMP("WS <--", data.data(), data.size(),
+                               ESP_LOG_INFO);
+      can_.Send(0x40, data);
     });
+    ESP_LOGI("Manager", "Init - Done");
   }
 
   void Main() {
@@ -209,7 +212,7 @@ class App {
         [](void* args) {
           auto& app = *static_cast<App*>(args);
           while (1) {
-            app.can_.KeepAlive();
+            app.can_.SendKeepAlive();
             vTaskDelay(pdMS_TO_TICKS(10));
           }
         },
@@ -222,10 +225,10 @@ class App {
         },
         "TCPClient", 16384, this, 4, NULL);
 
+    ESP_LOGI(TAG, "Starting OTA Server...");
     stm32::ota::OTAServer ota_server = this->StartOTAServer();
+    ESP_LOGI(TAG, "Entering main loop");
 
-    // AppInitializer app_initializer;
-    // this->server_ip = app_initializer.Test1();
     client.Connect("");
 
     while (1) {
