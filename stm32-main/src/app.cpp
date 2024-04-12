@@ -30,7 +30,7 @@ class App::Impl {
   Impl(App::Config &config)
       : com_(std::make_unique<Communication>(config.com)),
         emc(std::make_shared<robotics::utils::EMC>()),
-        emc_out(PC_1),
+        emc_out(std::make_shared<robotics::driver::Dout>(PC_1)),
         swerve_(std::make_unique<SwerveComponent>(
             config.swerve_config, com_->controller_status_.swerve,
             com_->value_store_.swerve)),
