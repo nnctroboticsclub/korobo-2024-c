@@ -19,7 +19,7 @@ $(eval $(call ESP32_DefineRules,e,/workspaces/korobo2023/esp32,$(ESP_SKIP_COMPIL
 
 lc:
 	wc -ml \
-		$$(find ./stm32-main/src -type f) \
-		$$(find ./stm32-enc/src -type f) \
-		$$(find ./esp32/main -type f) \
-		$$(find ./syoch-robotics -type f)
+		$$(find ./stm32-main/src -type f -a \( -name *.c -o -name *.cpp -o -name *.h -o -name *.hpp \)) \
+		$$(find ./stm32-enc/src -type f -a \( -name *.c -o -name *.cpp -o -name *.h -o -name *.hpp \)) \
+		$$(find ./esp32/main -type f -a \( -name *.c -o -name *.cpp -o -name *.h -o -name *.hpp \)) \
+		$$(find ./syoch-robotics -type f -a \( -name *.c -o -name *.cpp -o -name *.h -o -name *.hpp \))
