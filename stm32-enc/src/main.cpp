@@ -1,9 +1,10 @@
 #include "mbed.h"
 #include "rtos.h"
-#include "QEI.h"
 
 #include <vector>
 #include <sstream>
+
+#include <mbed-robotics/distributed_pseudo_encoder.hpp>
 
 #include "identify.h"
 #include "dcan.hpp"
@@ -21,134 +22,11 @@ void AtomicPrint(std::string const& string) {
   mtx->unlock();
 }
 
-template <typename T>
-class UpdateDetector {
- private:
-  T value_;
-  bool updated_;
-  bool invalidated_ = true;
-
- public:
-  UpdateDetector() : value_(0), updated_(false) {}
-  UpdateDetector(T const& value) : value_(value), updated_(false) {}
-
-  bool Update(T const& value) {
-    if (invalidated_) {
-      invalidated_ = false;
-      value_ = value;
-      updated_ = true;
-    } else if (value != value_) {
-      value_ = value;
-      updated_ = true;
-    } else {
-      updated_ = false;
-    }
-    return updated_;
-  }
-};
-
-class PseudoAbsEncoder {
- private:
-  int pulses_per_rotation = 200;
-
-  int current_pulses = 0;
-  bool is_abs_ready = false;
-
-  InterruptIn A_;
-  InterruptIn B_;
-  InterruptIn index_;
-
- public:
-  struct Config {
-    PinName a, b, index;
-  };
-
-  PseudoAbsEncoder(PinName A, PinName B, PinName index)
-      : A_(A), B_(B), index_(index) {
-    printf("PseudoAbsEncoder(%d, %d, %d)\n", A, B, index);
-
-    A_.rise([this]() {
-      auto b = B_.read();
-      if (b) {
-        current_pulses += 1;
-      } else {
-        current_pulses -= 1;
-      }
-    });
-    A_.fall([this]() {
-      auto b = B_.read();
-      if (b) {
-        current_pulses -= 1;
-      } else {
-        current_pulses += 1;
-      }
-    });
-    index_.rise([this]() {
-      if (is_abs_ready) return;
-      current_pulses = 0;
-      is_abs_ready = true;
-    });
-
-    printf("PseudoAbsEncoder(%d, %d, %d) done\n", A, B, index);
-  }
-
-  PseudoAbsEncoder(Config const& config)
-      : PseudoAbsEncoder(config.a, config.b, config.index) {}
-
-  double GetAngle() { return 360 * (current_pulses / 2) / pulses_per_rotation; }
-  int GetPulses() { return current_pulses; }
-
-  bool IsAbsReady() { return is_abs_ready; }
-};
-
-class DistributedPseudoAbsEncoder : public PseudoAbsEncoder {
- private:
-  UpdateDetector<double> angle_;
-  UpdateDetector<bool> abs_ready_detector_;
-
-  struct {
-    bool enabled;
-    DistributedCAN* can;
-    int dev_id;
-  } attached_can_;
-
-  void Send_() {
-    if (!attached_can_.enabled) return;
-
-    uint16_t value = (int16_t)(this->GetAngle() / 360.0f * 0x7FFF);
-
-    std::vector<uint8_t> payload;
-    payload.push_back(0x60 | attached_can_.dev_id);
-    payload.push_back(value >> 8);
-    payload.push_back(value & 0xFF);
-
-    auto ret = attached_can_.can->Send(0x61, payload);
-    if (ret != 1) {
-      printf("DistributedPseudoAbsEncoder::Send_/CanSend() failed\n");
-    }
-  }
-
- public:
-  using PseudoAbsEncoder::PseudoAbsEncoder;
-
-  void AttachSend(DistributedCAN& can, int dev_id) {
-    attached_can_.enabled = true;
-    attached_can_.can = &can;
-    attached_can_.dev_id = dev_id;
-  }
-
-  void Update() {
-    if (angle_.Update(this->GetAngle()) && this->IsAbsReady()) {
-      Send_();
-    }
-
-    if (abs_ready_detector_.Update(this->IsAbsReady()) && this->IsAbsReady()) {
-      printf("Encoder[%d] ready!\n", this->attached_can_.dev_id);
-    }
-  }
-};
-
 class App {
+  using DistributedPseudoAbsEncoder =
+      robotics::mbed::DistributedPseudoAbsEncoder;
+  using PseudoAbsEncoder = robotics::mbed::PseudoAbsEncoder;
+
  public:
   struct Config {
     struct {
@@ -172,7 +50,6 @@ class App {
   DistributedPseudoAbsEncoder encoder_dummy_;
 
   Thread monitor_thread_;
-  Thread sender_thread_;
 
   void MonitorThread() {
     char buf[80];
@@ -190,15 +67,6 @@ class App {
           encoder_dummy_.GetAngle(), encoder_dummy_.IsAbsReady() ? "OK" : "--");
       AtomicPrint(buf);
       wait_ns(500E6);
-    }
-  }
-  void SenderThread() {
-    while (1) {
-      encoder_sm0_.Update();
-      encoder_sm1_.Update();
-      encoder_sm2_.Update();
-      encoder_dummy_.Update();
-      wait_ns(50E6);
     }
   }
 
@@ -219,20 +87,11 @@ class App {
 
   void Main() {
     monitor_thread_.start(callback(this, &App::MonitorThread));
-    sender_thread_.start(callback(this, &App::SenderThread));
     while (1) {
       ThisThread::sleep_for(1s);
     }
   }
 };
-
-int main2(int argc, char const* argv[]) {
-  PseudoAbsEncoder encoder(PB_14, PB_15, PB_13);
-  while (1) {
-    printf("%4d(%4.1lf)\n", encoder.GetPulses(), encoder.GetAngle());
-  }
-  return 0;
-}
 
 int main(int argc, char const* argv[]) {
   printf("main() started CAN_ID=%d\n", CAN_ID);
